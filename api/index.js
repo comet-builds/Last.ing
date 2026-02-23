@@ -46,6 +46,34 @@ const apiClient = axios.create({
     timeout: 30000
 });
 
+// Simple LRU Cache for Album Info
+class SimpleLRUCache {
+    constructor(limit = 500) {
+        this.limit = limit;
+        this.cache = new Map();
+    }
+
+    get(key) {
+        if (!this.cache.has(key)) return undefined;
+        const value = this.cache.get(key);
+        // Refresh key
+        this.cache.delete(key);
+        this.cache.set(key, value);
+        return value;
+    }
+
+    set(key, value) {
+        if (this.cache.has(key)) {
+            this.cache.delete(key);
+        } else if (this.cache.size >= this.limit) {
+            this.cache.delete(this.cache.keys().next().value);
+        }
+        this.cache.set(key, value);
+    }
+}
+
+const albumCache = new SimpleLRUCache(500);
+
 // --- Helper Functions ---
 
 const getMusicBrainzTracklist = async (artist, album, mbid) => {
@@ -245,7 +273,7 @@ app.post('/api/auth', async (req, res) => {
 
         res.cookie('lastfm_session_key', sessionData.session.key, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: true,
             sameSite: 'Strict',
 			maxAge: 90 * 24 * 60 * 60 * 1000
         });
@@ -425,6 +453,13 @@ app.get('/api/get-album-info', async (req, res) => {
     }
 
     try {
+        const cacheKey = mbid ? `mbid:${mbid}` : `album:${artist}|${album}`;
+        const cachedData = albumCache.get(cacheKey);
+
+        if (cachedData) {
+            return res.json(cachedData);
+        }
+
         const params = {};
         if (mbid) {
             params.mbid = mbid;
@@ -456,6 +491,7 @@ app.get('/api/get-album-info', async (req, res) => {
             }
         }
 
+        albumCache.set(cacheKey, data);
         return res.json(data);
     } catch (error) {
         handleRouteError(res, error, 'Failed to get album info');
