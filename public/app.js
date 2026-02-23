@@ -365,7 +365,7 @@ function showHistoryMode() {
 }
 
 modeTrackBtn.addEventListener('click', () => {
-    updateUrl({ mode: 'track', q: null, artist: null, album: null });
+    updateUrl({ mode: 'track' });
 });
 
 modeAlbumBtn.addEventListener('click', () => {
@@ -373,7 +373,7 @@ modeAlbumBtn.addEventListener('click', () => {
 });
 
 modeFixPastBtn.addEventListener('click', () => {
-    updateUrl({ mode: 'history', q: null, artist: null, album: null });
+    updateUrl({ mode: 'history' });
 });
 
 // --- Pin Logic ---
@@ -671,17 +671,34 @@ async function selectAlbum(album) {
 }
 
 function prepareVerificationView(albumInfo) {
-    albumSearchView.classList.add('hidden');
-    albumVerificationView.classList.remove('hidden');
+    toggleVerificationView(true);
+    updateAlbumDetails(albumInfo);
 
-    if (albumViewMode) albumViewMode.classList.remove('hidden');
-    if (albumEditMode) albumEditMode.classList.add('hidden');
+    currentAlbumTracks = [];
+    const tracks = albumInfo.tracks?.track || [];
+    const trackArray = Array.isArray(tracks) ? tracks : [tracks];
 
-    if (editAlbumBtn) {
-        editAlbumBtn.innerHTML = EDIT_ICON_SVG;
-        editAlbumBtn.title = "Edit Album Details";
+    if (trackArray.length === 0) {
+        handleEmptyAlbum(albumInfo);
+    } else {
+        renderAlbumTracks(trackArray, albumInfo);
     }
+}
 
+function toggleVerificationView(show) {
+    if (show) {
+        albumSearchView.classList.add('hidden');
+        albumVerificationView.classList.remove('hidden');
+        if (albumViewMode) albumViewMode.classList.remove('hidden');
+        if (albumEditMode) albumEditMode.classList.add('hidden');
+        if (editAlbumBtn) {
+            editAlbumBtn.innerHTML = EDIT_ICON_SVG;
+            editAlbumBtn.title = "Edit Album Details";
+        }
+    }
+}
+
+function updateAlbumDetails(albumInfo) {
     selectedAlbumName.value = albumInfo.name;
     selectedAlbumArtist.value = albumInfo.artist;
 
@@ -694,57 +711,53 @@ function prepareVerificationView(albumInfo) {
         albumLinkDisplay.href = `https://www.last.fm/music/${encodeURIComponent(albumInfo.artist)}/${encodeURIComponent(albumInfo.name)}`;
     }
 
-
     const imageUrls = getSortedImageUrls(albumInfo.image);
-
     if (selectedAlbumCover) {
         setImageWithFallback(selectedAlbumCover, imageUrls);
     }
+}
 
-    currentAlbumTracks = [];
-    const tracks = albumInfo.tracks?.track || [];
-
-    const trackArray = Array.isArray(tracks) ? tracks : [tracks];
-
+function handleEmptyAlbum(albumInfo) {
     const albumDateGroup = document.getElementById('album-date').closest('.form-group');
 
-    if (trackArray.length === 0) {
-        tracklistContainer.classList.add('hidden');
-        confirmAlbumScrobbleBtn.classList.add('hidden');
-        if (albumDateGroup) albumDateGroup.classList.add('hidden');
+    tracklistContainer.classList.add('hidden');
+    confirmAlbumScrobbleBtn.classList.add('hidden');
+    if (albumDateGroup) albumDateGroup.classList.add('hidden');
 
-        if (albumTracksNotFound) albumTracksNotFound.classList.remove('hidden');
+    if (albumTracksNotFound) albumTracksNotFound.classList.remove('hidden');
 
-        if (continueManualBtn) {
-            continueManualBtn.onclick = () => {
-                modeTrackBtn.click();
+    if (continueManualBtn) {
+        continueManualBtn.onclick = () => {
+            modeTrackBtn.click();
 
-                artistInput.value = albumInfo.artist;
-                albumInput.value = albumInfo.name;
-                albumArtistInput.value = albumInfo.artist;
+            artistInput.value = albumInfo.artist;
+            albumInput.value = albumInfo.name;
+            albumArtistInput.value = albumInfo.artist;
 
-                if (vaBtn) {
-                    if (albumInfo.artist === 'Various Artists') {
-                        vaBtn.classList.add('active');
-                    } else {
-                        vaBtn.classList.remove('active');
-                    }
+            if (vaBtn) {
+                if (albumInfo.artist === 'Various Artists') {
+                    vaBtn.classList.add('active');
+                } else {
+                    vaBtn.classList.remove('active');
                 }
+            }
 
-                if (!pinArtistBtn.classList.contains('active')) pinArtistBtn.click();
-                if (!pinAlbumBtn.classList.contains('active')) pinAlbumBtn.click();
-                if (!pinAlbumArtistBtn.classList.contains('active')) pinAlbumArtistBtn.click();
+            if (!pinArtistBtn.classList.contains('active')) pinArtistBtn.click();
+            if (!pinAlbumBtn.classList.contains('active')) pinAlbumBtn.click();
+            if (!pinAlbumArtistBtn.classList.contains('active')) pinAlbumArtistBtn.click();
 
-                trackInput.focus();
-            };
-        }
-        return;
-    } else {
-        tracklistContainer.classList.remove('hidden');
-        confirmAlbumScrobbleBtn.classList.remove('hidden');
-        if (albumDateGroup) albumDateGroup.classList.remove('hidden');
-        if (albumTracksNotFound) albumTracksNotFound.classList.add('hidden');
+            trackInput.focus();
+        };
     }
+}
+
+function renderAlbumTracks(trackArray, albumInfo) {
+    const albumDateGroup = document.getElementById('album-date').closest('.form-group');
+
+    tracklistContainer.classList.remove('hidden');
+    confirmAlbumScrobbleBtn.classList.remove('hidden');
+    if (albumDateGroup) albumDateGroup.classList.remove('hidden');
+    if (albumTracksNotFound) albumTracksNotFound.classList.add('hidden');
 
     tracklistContainer.innerHTML = '';
 
@@ -774,72 +787,7 @@ function prepareVerificationView(albumInfo) {
     albumTimeInput.removeEventListener('input', updateTrackTimestamps);
 
     trackArray.forEach((track, index) => {
-        const duration = Number.parseInt(track.duration) || 180;
-
-        currentAlbumTracks.push({
-            name: track.name,
-            artist: track.artist?.name || albumInfo.artist,
-            duration: duration,
-            album: albumInfo.name,
-            albumArtist: albumInfo.artist
-        });
-
-        const row = document.createElement('div');
-        row.className = 'track-row';
-
-        const checkboxWrapper = document.createElement('div');
-        checkboxWrapper.className = 'checkbox-wrapper';
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `track-${index}`;
-        checkbox.checked = true;
-        checkbox.addEventListener('change', updateTrackTimestamps);
-
-        const customCheckbox = document.createElement('div');
-        customCheckbox.className = 'custom-checkbox';
-        customCheckbox.innerHTML = CHECKMARK_SVG;
-
-        checkboxWrapper.appendChild(checkbox);
-        checkboxWrapper.appendChild(customCheckbox);
-
-        row.addEventListener('click', (e) => {
-            if (e.target === checkbox) return;
-            if (e.target.tagName === 'A') return;
-
-            checkbox.checked = !checkbox.checked;
-            updateTrackTimestamps();
-        });
-
-        const trackInfo = document.createElement('div');
-        trackInfo.className = 'track-info';
-
-        const numSpan = document.createElement('span');
-        numSpan.className = 'track-number';
-        numSpan.textContent = `${index + 1}.`;
-
-        const nameLink = document.createElement('a');
-        nameLink.className = 'track-name';
-        nameLink.textContent = track.name;
-
-        if (track.url) {
-            nameLink.href = track.url;
-        } else {
-            nameLink.href = `https://www.last.fm/music/${encodeURIComponent(track.artist?.name || albumInfo.artist)}/_/${encodeURIComponent(track.name)}`;
-        }
-        nameLink.target = '_blank';
-        nameLink.rel = 'noopener noreferrer';
-
-        const timestampSpan = document.createElement('span');
-        timestampSpan.className = 'track-timestamp';
-        timestampSpan.id = `timestamp-${index}`;
-
-        trackInfo.appendChild(numSpan);
-        trackInfo.appendChild(nameLink);
-        trackInfo.appendChild(timestampSpan);
-
-        row.appendChild(checkboxWrapper);
-        row.appendChild(trackInfo);
+        const row = createTrackRow(track, index, albumInfo);
         tracklistContainer.appendChild(row);
     });
 
@@ -849,6 +797,77 @@ function prepareVerificationView(albumInfo) {
     albumTimeInput.addEventListener('input', updateTrackTimestamps);
 
     setTimeout(updateTrackTimestamps, 0);
+}
+
+function createTrackRow(track, index, albumInfo) {
+    const duration = Number.parseInt(track.duration) || 180;
+
+    currentAlbumTracks.push({
+        name: track.name,
+        artist: track.artist?.name || albumInfo.artist,
+        duration: duration,
+        album: albumInfo.name,
+        albumArtist: albumInfo.artist
+    });
+
+    const row = document.createElement('div');
+    row.className = 'track-row';
+
+    const checkboxWrapper = document.createElement('div');
+    checkboxWrapper.className = 'checkbox-wrapper';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `track-${index}`;
+    checkbox.checked = true;
+    checkbox.addEventListener('change', updateTrackTimestamps);
+
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'custom-checkbox';
+    customCheckbox.innerHTML = CHECKMARK_SVG;
+
+    checkboxWrapper.appendChild(checkbox);
+    checkboxWrapper.appendChild(customCheckbox);
+
+    row.addEventListener('click', (e) => {
+        if (e.target === checkbox) return;
+        if (e.target.tagName === 'A') return;
+
+        checkbox.checked = !checkbox.checked;
+        updateTrackTimestamps();
+    });
+
+    const trackInfo = document.createElement('div');
+    trackInfo.className = 'track-info';
+
+    const numSpan = document.createElement('span');
+    numSpan.className = 'track-number';
+    numSpan.textContent = `${index + 1}.`;
+
+    const nameLink = document.createElement('a');
+    nameLink.className = 'track-name';
+    nameLink.textContent = track.name;
+
+    if (track.url) {
+        nameLink.href = track.url;
+    } else {
+        nameLink.href = `https://www.last.fm/music/${encodeURIComponent(track.artist?.name || albumInfo.artist)}/_/${encodeURIComponent(track.name)}`;
+    }
+    nameLink.target = '_blank';
+    nameLink.rel = 'noopener noreferrer';
+
+    const timestampSpan = document.createElement('span');
+    timestampSpan.className = 'track-timestamp';
+    timestampSpan.id = `timestamp-${index}`;
+
+    trackInfo.appendChild(numSpan);
+    trackInfo.appendChild(nameLink);
+    trackInfo.appendChild(timestampSpan);
+
+    row.appendChild(checkboxWrapper);
+    row.appendChild(trackInfo);
+
+    return row;
 }
 
 function updateTrackTimestamps() {
