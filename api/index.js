@@ -76,6 +76,66 @@ const albumCache = new SimpleLRUCache(500);
 
 // --- Helper Functions ---
 
+const searchMusicBrainzRelease = async (artist, album) => {
+    const query = `release:${album} AND artist:${artist}`;
+    const searchUrl = `${MUSICBRAINZ_API_ROOT}release/`;
+
+    const searchResponse = await apiClient.get(searchUrl, {
+        params: {
+            query: query,
+            fmt: 'json'
+        },
+        headers: {
+            'User-Agent': MUSICBRAINZ_USER_AGENT
+        }
+    });
+
+    const releases = searchResponse.data.releases;
+    if (releases && releases.length > 0) {
+        // Use the first result
+        return releases[0].id;
+    }
+    return null;
+};
+
+const getReleaseTracks = async (mbid, defaultArtist) => {
+    const lookupUrl = `${MUSICBRAINZ_API_ROOT}release/${encodeURIComponent(mbid)}`;
+    const lookupResponse = await apiClient.get(lookupUrl, {
+        params: {
+            inc: 'recordings+artist-credits',
+            fmt: 'json'
+        },
+        headers: {
+            'User-Agent': MUSICBRAINZ_USER_AGENT
+        }
+    });
+
+    const media = lookupResponse.data.media;
+    if (!media || media.length === 0) {
+        return [];
+    }
+
+    const tracks = [];
+    let rank = 1;
+
+    media.forEach(medium => {
+        if (medium.tracks) {
+            medium.tracks.forEach(track => {
+                tracks.push({
+                    name: track.title,
+                    duration: Math.round(track.length / 1000), // Convert ms to seconds
+                    artist: {
+                        name: track['artist-credit']?.[0]?.artist?.name || defaultArtist
+                    },
+                    rank: rank++
+                });
+            });
+        }
+    });
+
+    return tracks;
+};
+
 const getMusicBrainzTracklist = async (artist, album, mbid) => {
     try {
         let releaseMbid = mbid;
@@ -88,66 +148,14 @@ const getMusicBrainzTracklist = async (artist, album, mbid) => {
 
         // If no MBID, search for the release
         if (!releaseMbid) {
-            const query = `release:${album} AND artist:${artist}`;
-            const searchUrl = `${MUSICBRAINZ_API_ROOT}release/`;
-
-            const searchResponse = await apiClient.get(searchUrl, {
-                params: {
-                    query: query,
-                    fmt: 'json'
-                },
-                headers: {
-                    'User-Agent': MUSICBRAINZ_USER_AGENT
-                }
-            });
-
-            const releases = searchResponse.data.releases;
-            if (releases && releases.length > 0) {
-                // Use the first result
-                releaseMbid = releases[0].id;
-            }
+            releaseMbid = await searchMusicBrainzRelease(artist, album);
         }
 
         if (!releaseMbid) {
             return [];
         }
 
-        // Get release details with recordings
-        const lookupUrl = `${MUSICBRAINZ_API_ROOT}release/${encodeURIComponent(releaseMbid)}`;
-        const lookupResponse = await apiClient.get(lookupUrl, {
-            params: {
-                inc: 'recordings+artist-credits',
-                fmt: 'json'
-            },
-            headers: {
-                'User-Agent': MUSICBRAINZ_USER_AGENT
-            }
-        });
-
-        const media = lookupResponse.data.media;
-        if (!media || media.length === 0) {
-            return [];
-        }
-
-        const tracks = [];
-        let rank = 1;
-
-        media.forEach(medium => {
-            if (medium.tracks) {
-                medium.tracks.forEach(track => {
-                    tracks.push({
-                        name: track.title,
-                        duration: Math.round(track.length / 1000), // Convert ms to seconds
-                        artist: {
-                            name: track['artist-credit']?.[0]?.artist?.name || artist
-                        },
-                        rank: rank++
-                    });
-                });
-            }
-        });
-
-        return tracks;
+        return await getReleaseTracks(releaseMbid, artist);
 
     } catch (error) {
         console.warn('MusicBrainz Lookup Failed:', error.message);
