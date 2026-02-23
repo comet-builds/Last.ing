@@ -771,10 +771,9 @@ function renderAlbumTracks(trackArray, albumInfo) {
         selectAllBtn.classList.toggle('active');
         const checked = selectAllBtn.classList.contains('active');
 
-        trackArray.forEach((_, idx) => {
-            const cb = document.getElementById(`track-${idx}`);
-            if (cb) {
-                cb.checked = checked;
+        currentAlbumTracks.forEach(track => {
+            if (track.checkbox) {
+                track.checkbox.checked = checked;
             }
         });
         updateTrackTimestamps();
@@ -802,13 +801,14 @@ function renderAlbumTracks(trackArray, albumInfo) {
 function createTrackRow(track, index, albumInfo) {
     const duration = Number.parseInt(track.duration) || 180;
 
-    currentAlbumTracks.push({
+    const trackObj = {
         name: track.name,
         artist: track.artist?.name || albumInfo.artist,
         duration: duration,
         album: albumInfo.name,
         albumArtist: albumInfo.artist
-    });
+    };
+    currentAlbumTracks.push(trackObj);
 
     const row = document.createElement('div');
     row.className = 'track-row';
@@ -821,6 +821,7 @@ function createTrackRow(track, index, albumInfo) {
     checkbox.id = `track-${index}`;
     checkbox.checked = true;
     checkbox.addEventListener('change', updateTrackTimestamps);
+    trackObj.checkbox = checkbox;
 
     const customCheckbox = document.createElement('div');
     customCheckbox.className = 'custom-checkbox';
@@ -859,6 +860,7 @@ function createTrackRow(track, index, albumInfo) {
     const timestampSpan = document.createElement('span');
     timestampSpan.className = 'track-timestamp';
     timestampSpan.id = `timestamp-${index}`;
+    trackObj.timestampSpan = timestampSpan;
 
     trackInfo.appendChild(numSpan);
     trackInfo.appendChild(nameLink);
@@ -875,13 +877,11 @@ function updateTrackTimestamps() {
     if (!endTimestamp) return;
 
     const checkedIndices = [];
-    currentAlbumTracks.forEach((_, index) => {
-        const checkbox = document.getElementById(`track-${index}`);
-        if (checkbox?.checked) {
+    currentAlbumTracks.forEach((track, index) => {
+        if (track.checkbox?.checked) {
             checkedIndices.push(index);
         } else {
-             const span = document.getElementById(`timestamp-${index}`);
-             if (span) span.textContent = '';
+             if (track.timestampSpan) track.timestampSpan.textContent = '';
         }
     });
 
@@ -891,10 +891,11 @@ function updateTrackTimestamps() {
 
     for (let i = checkedIndices.length - 1; i >= 0; i--) {
         const trackIndex = checkedIndices[i];
+        const track = currentAlbumTracks[trackIndex];
 
-        currentAlbumTracks[trackIndex].calculatedTimestamp = currentStart;
+        track.calculatedTimestamp = currentStart;
 
-        const span = document.getElementById(`timestamp-${trackIndex}`);
+        const span = track.timestampSpan;
         if (span) {
             const dateObj = new Date(currentStart * 1000);
             const hours = String(dateObj.getHours()).padStart(2, '0');
@@ -968,9 +969,8 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
     const finalAlbumName = selectedAlbumName.value;
     const finalAlbumArtist = selectedAlbumArtist.value;
 
-    currentAlbumTracks.forEach((track, index) => {
-        const checkbox = document.getElementById(`track-${index}`);
-        if (checkbox?.checked) {
+    currentAlbumTracks.forEach((track) => {
+        if (track.checkbox?.checked) {
             if (!track.calculatedTimestamp) return;
 
             let finalArtist = track.artist;
