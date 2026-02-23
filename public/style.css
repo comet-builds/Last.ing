@@ -701,6 +701,7 @@ a.track-name,
     width: 30px;
     color: var(--text-secondary);
     font-size: 0.8rem;
+    flex-shrink: 0;
 }
 
 a.track-name {
@@ -984,6 +985,7 @@ a.track-name:hover {
     color: var(--text-secondary);
     font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
 }
 
 .history-buttons {
