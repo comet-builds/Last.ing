@@ -1137,6 +1137,7 @@ function renderHistory(tracks) {
         return;
     }
 
+    const fragment = document.createDocumentFragment();
     let lastDateStr = '';
 
     filteredTracks.forEach(track => {
@@ -1150,7 +1151,7 @@ function renderHistory(tracks) {
             const sep = document.createElement('div');
             sep.className = 'date-separator';
             sep.textContent = dateStr;
-            historyList.appendChild(sep);
+            fragment.appendChild(sep);
             lastDateStr = dateStr;
         }
 
@@ -1260,8 +1261,10 @@ function renderHistory(tracks) {
 
         item.appendChild(info);
         item.appendChild(rightDiv);
-        historyList.appendChild(item);
+        fragment.appendChild(item);
     });
+
+    historyList.appendChild(fragment);
 }
 
 filterNoAlbum.addEventListener('click', () => {
