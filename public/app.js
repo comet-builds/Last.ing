@@ -77,6 +77,7 @@ let statusTimeout;
 let currentAlbumTracks = [];
 let historyPage = 1;
 const HISTORY_LIMIT = 50;
+const DUPLICATE_WINDOW_SECONDS = 300;
 
 // --- Auth Functions ---
 
@@ -1131,7 +1132,7 @@ function renderHistory(tracks) {
 
             if (current.name === next.name && current.artist['#text'] === next.artist['#text']) {
                  const timeDiff = Math.abs(Number.parseInt(current.date.uts) - Number.parseInt(next.date.uts));
-                 if (timeDiff < 300) {
+                 if (timeDiff < DUPLICATE_WINDOW_SECONDS) {
                      duplicates.add(current);
                      duplicates.add(next);
                  }
