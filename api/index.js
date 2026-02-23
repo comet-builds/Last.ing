@@ -165,7 +165,8 @@ app.post('/api/auth', async (req, res) => {
         res.cookie('lastfm_session_key', sessionData.session.key, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict'
+            sameSite: 'Strict',
+			maxAge: 90 * 24 * 60 * 60 * 1000
         });
 
         const safeSession = { ...sessionData.session };
