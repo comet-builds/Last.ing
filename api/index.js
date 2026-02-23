@@ -186,11 +186,12 @@ const sanitizeError = (error) => {
 };
 
 const handleRouteError = (res, error, contextMessage) => {
-    console.error(`${contextMessage}:`, sanitizeError(error));
+    const sanitizedError = sanitizeError(error);
+    console.error(`${contextMessage}:`, sanitizedError);
     const status = error.response?.status || 500;
 
-    if (status === 400 && error.response?.data) {
-         return res.status(400).json(error.response.data);
+    if (status === 400 && sanitizedError.responseData) {
+         return res.status(400).json(sanitizedError.responseData);
     }
 
     res.status(status).json({ error: contextMessage });
