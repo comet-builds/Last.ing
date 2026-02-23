@@ -51,6 +51,12 @@ const apiClient = axios.create({
 const getMusicBrainzTracklist = async (artist, album, mbid) => {
     try {
         let releaseMbid = mbid;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+        if (releaseMbid && !uuidRegex.test(releaseMbid)) {
+            console.warn(`Invalid MBID format provided: ${releaseMbid}`);
+            releaseMbid = null;
+        }
 
         // If no MBID, search for the release
         if (!releaseMbid) {
@@ -79,7 +85,7 @@ const getMusicBrainzTracklist = async (artist, album, mbid) => {
         }
 
         // Get release details with recordings
-        const lookupUrl = `${MUSICBRAINZ_API_ROOT}release/${releaseMbid}`;
+        const lookupUrl = `${MUSICBRAINZ_API_ROOT}release/${encodeURIComponent(releaseMbid)}`;
         const lookupResponse = await apiClient.get(lookupUrl, {
             params: {
                 inc: 'recordings+artist-credits',
