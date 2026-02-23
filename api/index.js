@@ -54,7 +54,7 @@ const getMusicBrainzTracklist = async (artist, album, mbid) => {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
         if (releaseMbid && !uuidRegex.test(releaseMbid)) {
-            console.warn(`Invalid MBID format provided: ${releaseMbid}`);
+            console.warn('Invalid MBID format provided');
             releaseMbid = null;
         }
 
