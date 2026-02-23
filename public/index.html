@@ -18,7 +18,7 @@
     <meta name="twitter:description" content="A minimalist manual scrobbler for Last.fm">
     <meta name="twitter:image" content="https://i.imgur.com/XXR86GF.png">
 
-    <link rel="stylesheet" href="style.css" integrity="sha512-9/GH1RHykv+lHmeiYXm1DqR2hRAoY9skzTSkQ5jTN4KQ8tkRrAxVvB5IBv/zf5Fs/1MfzBC26ZTP0gp/nEfX6Q==">
+    <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#b90000">
     <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
@@ -175,6 +175,11 @@
                         <div id="tracklist-container">
                         </div>
 
+                        <div id="album-tracks-not-found" class="hidden">
+                            <p class="no-tracks-message">Tracklist not found.</p>
+                            <button id="continue-manual-btn" class="btn primary">Continue Manually</button>
+                        </div>
+
                         <button id="confirm-album-scrobble-btn" class="btn primary">Scrobble Album</button>
                     </div>
                 </div>
@@ -208,6 +213,6 @@
         <div class="spinner"></div>
     </div>
 
-    <script type="module" src="app.js" integrity="sha512-0OElCJtt8Ua8cq/oDnS26Z0rGWJur8c6j2A3bOnuBMEK3uNvLDrtwfy9noe3yUCR7LF7vYWZR5o3XG7/+y7J6w=="></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
