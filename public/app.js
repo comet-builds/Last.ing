@@ -276,6 +276,10 @@ function setImageWithFallback(imgElement, imageUrls, placeholder = 'assets/laser
 }
 
 function showStatus(message, type) {
+    if (typeof message === 'string' && message.endsWith('.')) {
+        message = message.slice(0, -1);
+    }
+
     if (statusTimeout) {
         clearTimeout(statusTimeout);
         statusTimeout = null;
@@ -408,7 +412,7 @@ scrobbleForm.addEventListener('submit', async (e) => {
     const timestamp = getTimestampFromInputs(dateInput, timeInput);
 
     if (!artist || !track || !timestamp) {
-        showStatus('Please fill in all required fields.', 'error');
+        showStatus('Please fill in all required fields', 'error');
         return;
     }
 
@@ -436,7 +440,7 @@ scrobbleForm.addEventListener('submit', async (e) => {
             throw new Error(data.message || 'Scrobble failed');
         }
 
-        showStatus(`Scrobbled.`, 'success');
+        showStatus(`Scrobbled`, 'success');
 
         if (!pinArtistBtn.classList.contains('active')) artistInput.value = '';
         if (!pinTrackBtn.classList.contains('active')) trackInput.value = '';
@@ -464,7 +468,7 @@ if (findAlbumBtn) {
         const track = trackInput.value.trim();
 
         if (!artist || !track) {
-            showStatus('Please enter Artist and Track first.', 'error');
+            showStatus('Please enter Artist and Track first', 'error');
             return;
         }
 
@@ -483,7 +487,7 @@ if (findAlbumBtn) {
             const albums = data.albums || [];
 
             if (albums.length === 0) {
-                showStatus('No suitable albums found.', 'error');
+                showStatus('No suitable albums found', 'error');
                 trackAlbumResults.classList.add('hidden');
                 return;
             }
@@ -554,7 +558,7 @@ function renderTrackAlbumResults(albums) {
 async function performAlbumSearch() {
     const query = albumSearchInput.value.trim();
     if (!query) {
-        showStatus('Please enter an artist or album name.', 'error');
+        showStatus('Please enter an artist or album name', 'error');
         return;
     }
 
@@ -578,7 +582,7 @@ async function performAlbumSearch() {
         const albums = data.results?.albummatches?.album || [];
 
         if (albums.length === 0) {
-            showStatus('No albums found.', 'error');
+            showStatus('No albums found', 'error');
             return;
         }
 
@@ -968,7 +972,7 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
     const endTimestamp = getTimestampFromInputs(albumDateInput, albumTimeInput);
 
     if (!endTimestamp) {
-        showStatus('Please select a valid timestamp.', 'error');
+        showStatus('Please select a valid timestamp', 'error');
         return;
     }
 
@@ -998,7 +1002,7 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
     });
 
     if (tracksToScrobble.length === 0) {
-        showStatus('No tracks selected.', 'error');
+        showStatus('No tracks selected', 'error');
         return;
     }
 
@@ -1084,7 +1088,7 @@ function updateHistoryCache(newTracks, append) {
 
 async function loadHistory(append = false) {
     if (!username) {
-        showStatus('Please login first.', 'error');
+        showStatus('Please login first', 'error');
         return;
     }
 
