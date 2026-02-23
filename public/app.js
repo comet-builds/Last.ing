@@ -114,7 +114,7 @@ function showScrobbleUI() {
     headerUserInfo.classList.remove('hidden');
     if (username) {
         usernameDisplay.textContent = username;
-        usernameDisplay.href = `https://www.last.fm/user/${username}`;
+        usernameDisplay.href = `https://www.last.fm/user/${encodeLastFmParam(username)}`;
     }
 
     if (userImage) {
@@ -199,6 +199,11 @@ logoutBtn.addEventListener('click', async () => {
 });
 
 // --- Utility Functions ---
+
+function encodeLastFmParam(param) {
+    if (!param) return '';
+    return encodeURIComponent(param).replace(/%20/g, '+').replace(/%2B/g, '%252B');
+}
 
 function updateUserSession(name, images) {
     username = name;
@@ -707,11 +712,11 @@ function updateAlbumDetails(albumInfo) {
 
     if (artistLinkDisplay) {
         artistLinkDisplay.textContent = albumInfo.artist;
-        artistLinkDisplay.href = `https://www.last.fm/music/${encodeURIComponent(albumInfo.artist)}`;
+        artistLinkDisplay.href = `https://www.last.fm/music/${encodeLastFmParam(albumInfo.artist)}`;
     }
     if (albumLinkDisplay) {
         albumLinkDisplay.textContent = albumInfo.name;
-        albumLinkDisplay.href = `https://www.last.fm/music/${encodeURIComponent(albumInfo.artist)}/${encodeURIComponent(albumInfo.name)}`;
+        albumLinkDisplay.href = `https://www.last.fm/music/${encodeLastFmParam(albumInfo.artist)}/${encodeLastFmParam(albumInfo.name)}`;
     }
 
     const imageUrls = getSortedImageUrls(albumInfo.image);
@@ -855,7 +860,7 @@ function createTrackRow(track, index, albumInfo) {
     if (track.url) {
         nameLink.href = track.url;
     } else {
-        nameLink.href = `https://www.last.fm/music/${encodeURIComponent(track.artist?.name || albumInfo.artist)}/_/${encodeURIComponent(track.name)}`;
+        nameLink.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist?.name || albumInfo.artist)}/_/${encodeLastFmParam(track.name)}`;
     }
     nameLink.target = '_blank';
     nameLink.rel = 'noopener noreferrer';
@@ -934,8 +939,8 @@ if (editAlbumBtn) {
                 if (newArtistName) artistLinkDisplay.textContent = newArtistName;
 
                 if (newAlbumName && newArtistName) {
-                    albumLinkDisplay.href = `https://www.last.fm/music/${encodeURIComponent(newArtistName)}/${encodeURIComponent(newAlbumName)}`;
-                    artistLinkDisplay.href = `https://www.last.fm/music/${encodeURIComponent(newArtistName)}`;
+                    albumLinkDisplay.href = `https://www.last.fm/music/${encodeLastFmParam(newArtistName)}/${encodeLastFmParam(newAlbumName)}`;
+                    artistLinkDisplay.href = `https://www.last.fm/music/${encodeLastFmParam(newArtistName)}`;
                 }
 
                 albumViewMode.classList.remove('hidden');
@@ -1177,13 +1182,13 @@ function renderHistory(tracks) {
         const title = document.createElement('a');
         title.className = 'history-track';
         title.textContent = track.name;
-        title.href = `https://www.last.fm/music/${encodeURIComponent(track.artist['#text'])}/_/${encodeURIComponent(track.name)}`;
+        title.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}/_/${encodeLastFmParam(track.name)}`;
         title.target = '_blank';
 
         const artist = document.createElement('a');
         artist.className = 'history-artist';
         artist.textContent = track.artist['#text'];
-        artist.href = `https://www.last.fm/music/${encodeURIComponent(track.artist['#text'])}`;
+        artist.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}`;
         artist.target = '_blank';
 
         info.appendChild(title);
@@ -1196,7 +1201,7 @@ function renderHistory(tracks) {
             const albumLink = document.createElement('a');
             albumLink.className = 'history-album-link';
             albumLink.textContent = track.album['#text'];
-            albumLink.href = `https://www.last.fm/music/${encodeURIComponent(track.artist['#text'])}/${encodeURIComponent(track.album['#text'])}`;
+            albumLink.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}/${encodeLastFmParam(track.album['#text'])}`;
             albumLink.target = '_blank';
             meta.appendChild(albumLink);
 
@@ -1297,7 +1302,7 @@ async function deleteScrobble(timestamp) {
     const day = String(dateObj.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
 
-    const url = `https://www.last.fm/user/${encodeURIComponent(username)}/library?from=${dateStr}&to=${dateStr}`;
+    const url = `https://www.last.fm/user/${encodeLastFmParam(username)}/library?from=${dateStr}&to=${dateStr}`;
 
     globalThis.open(url, '_blank');
 }
