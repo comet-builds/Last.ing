@@ -1282,7 +1282,7 @@ filterDuplicates.addEventListener('click', () => {
    }
 });
 
-async function deleteScrobble(artist, track, timestamp, elementToRemove) {
+async function deleteScrobble(timestamp) {
     // timestamp is in seconds (unix timestamp)
     // We need to convert it to a Date object to get the YYYY-MM-DD
     const dateObj = new Date(timestamp * 1000);
@@ -1299,12 +1299,9 @@ async function deleteScrobble(artist, track, timestamp, elementToRemove) {
 document.addEventListener('click', async (e) => {
     const deleteBtn = e.target.closest('.delete-scrobble-btn');
     if (deleteBtn) {
-        const artist = deleteBtn.dataset.artist;
-        const track = deleteBtn.dataset.track;
         const timestamp = deleteBtn.dataset.timestamp;
-        const listItem = deleteBtn.closest('.history-item');
 
-        await deleteScrobble(artist, track, timestamp, listItem);
+        await deleteScrobble(timestamp);
     }
 });
 
