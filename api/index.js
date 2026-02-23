@@ -514,6 +514,27 @@ app.post('/api/scrobble-batch', async (req, res) => {
         return res.status(400).json({ error: 'Batch limit exceeded: Max 50 tracks per request' });
     }
 
+    for (let i = 0; i < tracks.length; i++) {
+        const trackData = tracks[i];
+        if (!trackData || typeof trackData !== 'object') {
+            return res.status(400).json({ error: `Invalid track data at index ${i}` });
+        }
+
+        const { artist, track, timestamp, album, albumArtist } = trackData;
+
+        if (!artist || !track || !timestamp) {
+            return res.status(400).json({ error: `Missing required fields at index ${i} (artist, track, timestamp)` });
+        }
+
+        if (typeof artist !== 'string' || typeof track !== 'string' || (album && typeof album !== 'string') || (albumArtist && typeof albumArtist !== 'string')) {
+            return res.status(400).json({ error: `Invalid data types at index ${i}: artist, track, album, and albumArtist must be strings` });
+        }
+
+        if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
+            return res.status(400).json({ error: `Invalid data type at index ${i}: timestamp must be an integer` });
+        }
+    }
+
     try {
         const params = { sk: sessionKey };
 
