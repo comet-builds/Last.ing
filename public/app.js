@@ -202,7 +202,7 @@ logoutBtn.addEventListener('click', async () => {
 
 function encodeLastFmParam(param) {
     if (!param) return '';
-    return encodeURIComponent(param).replace(/%20/g, '+').replace(/%2B/g, '%252B');
+    return encodeURIComponent(param).replaceAll('%20', '+').replaceAll('%2B', '%252B');
 }
 
 function updateUserSession(name, images) {
