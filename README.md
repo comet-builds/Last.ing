@@ -1,0 +1,15 @@
+# ![Last.ing icon](https://github.com/user-attachments/assets/4ee446e6-45df-4667-9145-262cd3e36120) Last.ing
+
+![HTML5](https://img.shields.io/badge/HTML5-%23E34F26.svg?logo=html5&logoColor=white) ![Vanilla JS](https://img.shields.io/badge/JavaScript-Vanilla-yellow?logo=javascript) ![Express.js Backend](https://img.shields.io/badge/express.js-%23404d59.svg?logo=express&logoColor=%2361DAFB) ![CSS3](https://img.shields.io/badge/CSS-563d7c?&style=flat&logo=css&logoColor=white) ![Node.js](https://img.shields.io/badge/Node.js-43853D?style=flat&logo=node.js&logoColor=white) ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat&logo=vercel&logoColor=white) [![Last.fm](https://img.shields.io/badge/Last.fm-D51007?style=flat&logo=last.fm&logoColor=white)](https://www.last.fm/) [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=comet-builds_Last.ing&metric=security_rating&token=49b000a7d0ea31ef7a12c75e8df400c2ffa8ab95)](https://sonarcloud.io/summary/new_code?id=comet-builds_Last.ing) [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=comet-builds_Last.ing&metric=vulnerabilities&token=49b000a7d0ea31ef7a12c75e8df400c2ffa8ab95)](https://sonarcloud.io/summary/new_code?id=comet-builds_Last.ing) [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=comet-builds_Last.ing&metric=bugs&token=49b000a7d0ea31ef7a12c75e8df400c2ffa8ab95)](https://sonarcloud.io/summary/new_code?id=comet-builds_Last.ing)
+
+A minimalist, responsive manual scrobbler for Last.fm.
+
+## Features
+-   **Manual Track Scrobbling**: Easily scrobble individual tracks with custom timestamps.
+-   **Batch Album Scrobbling**: Search for albums, verify tracklists, and scrobble entire albums at once with automatically calculated timestamps.
+-   **History Management**: View your recent scrobbles, filter by duplicates or missing album info, and quickly access Last.fm to edit or delete entries.
+-   **Secure**: Uses Last.fm API authentication.
+-   **Responsive**: Designed to work perfectly on both desktop and mobile devices.
+
+## Preview
+![App Screenshot](https://github.com/user-attachments/assets/42e26250-c06e-4a05-8ff0-0041c7c12f37)
