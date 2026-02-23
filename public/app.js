@@ -594,6 +594,7 @@ albumSearchInput.addEventListener('keydown', (e) => {
 
 function renderAlbumResults(albums) {
     albumResults.innerHTML = '';
+    const fragment = document.createDocumentFragment();
 
     albums.forEach(album => {
         const imageUrls = getSortedImageUrls(album.image);
@@ -621,8 +622,10 @@ function renderAlbumResults(albums) {
         card.appendChild(infoDiv);
 
         card.addEventListener('click', () => selectAlbum(album));
-        albumResults.appendChild(card);
+        fragment.appendChild(card);
     });
+
+    albumResults.appendChild(fragment);
 }
 
 // --- Album Selection & Verification Logic ---
