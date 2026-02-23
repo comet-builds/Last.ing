@@ -37,6 +37,8 @@ app.use((req, res, next) => {
 const API_KEY = process.env.LASTFM_API_KEY;
 const SHARED_SECRET = process.env.LASTFM_SHARED_SECRET;
 const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
+const MUSICBRAINZ_API_ROOT = 'https://musicbrainz.org/ws/2/';
+const MUSICBRAINZ_USER_AGENT = 'Last.ing/1.0 ( https://github.com/comet-builds/Last.ing )';
 
 const agent = new https.Agent({ keepAlive: true });
 const apiClient = axios.create({
@@ -45,6 +47,79 @@ const apiClient = axios.create({
 });
 
 // --- Helper Functions ---
+
+const getMusicBrainzTracklist = async (artist, album, mbid) => {
+    try {
+        let releaseMbid = mbid;
+
+        // If no MBID, search for the release
+        if (!releaseMbid) {
+            const query = `release:${album} AND artist:${artist}`;
+            const searchUrl = `${MUSICBRAINZ_API_ROOT}release/`;
+
+            const searchResponse = await apiClient.get(searchUrl, {
+                params: {
+                    query: query,
+                    fmt: 'json'
+                },
+                headers: {
+                    'User-Agent': MUSICBRAINZ_USER_AGENT
+                }
+            });
+
+            const releases = searchResponse.data.releases;
+            if (releases && releases.length > 0) {
+                // Use the first result
+                releaseMbid = releases[0].id;
+            }
+        }
+
+        if (!releaseMbid) {
+            return [];
+        }
+
+        // Get release details with recordings
+        const lookupUrl = `${MUSICBRAINZ_API_ROOT}release/${releaseMbid}`;
+        const lookupResponse = await apiClient.get(lookupUrl, {
+            params: {
+                inc: 'recordings+artist-credits',
+                fmt: 'json'
+            },
+            headers: {
+                'User-Agent': MUSICBRAINZ_USER_AGENT
+            }
+        });
+
+        const media = lookupResponse.data.media;
+        if (!media || media.length === 0) {
+            return [];
+        }
+
+        const tracks = [];
+        let rank = 1;
+
+        media.forEach(medium => {
+            if (medium.tracks) {
+                medium.tracks.forEach(track => {
+                    tracks.push({
+                        name: track.title,
+                        duration: Math.round(track.length / 1000), // Convert ms to seconds
+                        artist: {
+                            name: track['artist-credit']?.[0]?.artist?.name || artist
+                        },
+                        rank: rank++
+                    });
+                });
+            }
+        });
+
+        return tracks;
+
+    } catch (error) {
+        console.warn('MusicBrainz Lookup Failed:', error.message);
+        return [];
+    }
+};
 
 const signParams = (params) => {
     const sortedKeys = Object.keys(params).sort();
@@ -353,6 +428,28 @@ app.get('/api/get-album-info', async (req, res) => {
         }
 
         const data = await makeLastFmRequest('album.getInfo', params);
+
+        // Check if tracks are missing or empty
+        const tracks = data.album?.tracks?.track;
+        const hasTracks = Array.isArray(tracks) ? tracks.length > 0 : !!tracks;
+
+        if (!hasTracks) {
+            // Attempt fallback to MusicBrainz
+            const mbTracks = await getMusicBrainzTracklist(
+                data.album.artist || artist,
+                data.album.name || album,
+                data.album.mbid || mbid
+            );
+
+            if (mbTracks.length > 0) {
+                // Determine if Last.fm structure is missing 'tracks' object entirely or just empty
+                if (!data.album.tracks) {
+                    data.album.tracks = {};
+                }
+                data.album.tracks.track = mbTracks;
+            }
+        }
+
         return res.json(data);
     } catch (error) {
         handleRouteError(res, error, 'Failed to get album info');

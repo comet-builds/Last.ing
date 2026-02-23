@@ -68,6 +68,8 @@ const albumNowBtn = document.getElementById('album-now-btn');
 const tracklistContainer = document.getElementById('tracklist-container');
 const confirmAlbumScrobbleBtn = document.getElementById('confirm-album-scrobble-btn');
 const loadMoreHistoryBtn = document.getElementById('load-more-history-btn');
+const albumTracksNotFound = document.getElementById('album-tracks-not-found');
+const continueManualBtn = document.getElementById('continue-manual-btn');
 
 let username = localStorage.getItem(CONFIG.STORAGE_KEYS.USERNAME);
 let userImage = localStorage.getItem(CONFIG.STORAGE_KEYS.USER_IMAGE);
@@ -703,6 +705,46 @@ function prepareVerificationView(albumInfo) {
     const tracks = albumInfo.tracks?.track || [];
 
     const trackArray = Array.isArray(tracks) ? tracks : [tracks];
+
+    const albumDateGroup = document.getElementById('album-date').closest('.form-group');
+
+    if (trackArray.length === 0) {
+        tracklistContainer.classList.add('hidden');
+        confirmAlbumScrobbleBtn.classList.add('hidden');
+        if (albumDateGroup) albumDateGroup.classList.add('hidden');
+
+        if (albumTracksNotFound) albumTracksNotFound.classList.remove('hidden');
+
+        if (continueManualBtn) {
+            continueManualBtn.onclick = () => {
+                modeTrackBtn.click();
+
+                artistInput.value = albumInfo.artist;
+                albumInput.value = albumInfo.name;
+                albumArtistInput.value = albumInfo.artist;
+
+                if (vaBtn) {
+                    if (albumInfo.artist === 'Various Artists') {
+                        vaBtn.classList.add('active');
+                    } else {
+                        vaBtn.classList.remove('active');
+                    }
+                }
+
+                if (!pinArtistBtn.classList.contains('active')) pinArtistBtn.click();
+                if (!pinAlbumBtn.classList.contains('active')) pinAlbumBtn.click();
+                if (!pinAlbumArtistBtn.classList.contains('active')) pinAlbumArtistBtn.click();
+
+                trackInput.focus();
+            };
+        }
+        return;
+    } else {
+        tracklistContainer.classList.remove('hidden');
+        confirmAlbumScrobbleBtn.classList.remove('hidden');
+        if (albumDateGroup) albumDateGroup.classList.remove('hidden');
+        if (albumTracksNotFound) albumTracksNotFound.classList.add('hidden');
+    }
 
     tracklistContainer.innerHTML = '';
 
