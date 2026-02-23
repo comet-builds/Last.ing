@@ -880,8 +880,8 @@ function updateTrackTimestamps() {
     currentAlbumTracks.forEach((track, index) => {
         if (track.checkbox?.checked) {
             checkedIndices.push(index);
-        } else {
-             if (track.timestampSpan) track.timestampSpan.textContent = '';
+        } else if (track.timestampSpan) {
+            track.timestampSpan.textContent = '';
         }
     });
 
