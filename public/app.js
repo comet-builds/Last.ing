@@ -798,10 +798,14 @@ function renderAlbumTracks(trackArray, albumInfo) {
     albumDateInput.removeEventListener('input', updateTrackTimestamps);
     albumTimeInput.removeEventListener('input', updateTrackTimestamps);
 
+    const fragment = document.createDocumentFragment();
+
     trackArray.forEach((track, index) => {
         const row = createTrackRow(track, index, albumInfo);
-        tracklistContainer.appendChild(row);
+        fragment.appendChild(row);
     });
+
+    tracklistContainer.appendChild(fragment);
 
     setTimestampToNow(albumDateInput, albumTimeInput);
 
