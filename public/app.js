@@ -6,10 +6,10 @@ const CONFIG = {
     }
 };
 
-const EDIT_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>`;
-const DONE_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
-const DELETE_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
-const CHECKMARK_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+const EDIT_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" class="icon"><use href="assets/icons/sprite.svg#icon-edit"/></svg>`;
+const DONE_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" class="icon"><use href="assets/icons/sprite.svg#icon-check"/></svg>`;
+const DELETE_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" class="icon"><use href="assets/icons/sprite.svg#icon-delete"/></svg>`;
+const CHECKMARK_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" class="icon-checkmark"><use href="assets/icons/sprite.svg#icon-check-bold"/></svg>`;
 
 const authSection = document.getElementById('auth-section');
 const scrobbleSection = document.getElementById('scrobble-section');
@@ -246,7 +246,7 @@ function getSortedImageUrls(images, preferences = ['large', 'extralarge', 'mediu
     return sortedUrls;
 }
 
-function setImageWithFallback(imgElement, imageUrls, placeholder = 'assets/laser-disc.svg') {
+function setImageWithFallback(imgElement, imageUrls, placeholder = 'assets/icons/laser-disc.svg') {
     imgElement.onerror = null;
 
     if (!imageUrls || imageUrls.length === 0) {
