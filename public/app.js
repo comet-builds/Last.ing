@@ -246,20 +246,34 @@ function getSortedImageUrls(images, preferences = ['large', 'extralarge', 'mediu
     return sortedUrls;
 }
 
-function setImageWithFallback(imgElement, imageUrls, placeholder = 'assets/icons/laser-disc.svg') {
+function setImageWithFallback(imgElement, imageUrls) {
     imgElement.onerror = null;
 
+    const setFallback = () => {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", imgElement.className);
+        if (imgElement.id) svg.setAttribute("id", imgElement.id);
+        if (imgElement.alt) svg.setAttribute("aria-label", imgElement.alt);
+
+        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        use.setAttribute("href", "assets/icons/sprite.svg#icon-laser-disc");
+        svg.appendChild(use);
+
+        if (imgElement.parentNode) {
+            imgElement.parentNode.replaceChild(svg, imgElement);
+        }
+        return svg;
+    };
+
     if (!imageUrls || imageUrls.length === 0) {
-        imgElement.src = placeholder;
-        return;
+        return setFallback();
     }
 
     let currentIndex = 0;
 
     const loadNext = () => {
         if (currentIndex >= imageUrls.length) {
-            imgElement.src = placeholder;
-            imgElement.onerror = null;
+            setFallback();
             return;
         }
 
@@ -273,6 +287,7 @@ function setImageWithFallback(imgElement, imageUrls, placeholder = 'assets/icons
     };
 
     loadNext();
+    return imgElement;
 }
 
 function showStatus(message, type) {
@@ -514,8 +529,8 @@ function renderTrackAlbumResults(albums) {
         card.className = 'album-card';
 
         const img = document.createElement('img');
-        setImageWithFallback(img, imageUrls);
         img.className = 'album-cover';
+        const coverEl = setImageWithFallback(img, imageUrls);
 
         const info = document.createElement('div');
         info.className = 'album-info';
@@ -529,7 +544,7 @@ function renderTrackAlbumResults(albums) {
         info.appendChild(nameStr);
         info.appendChild(artistStr);
 
-        card.appendChild(img);
+        card.appendChild(coverEl);
         card.appendChild(info);
 
         card.addEventListener('click', () => {
@@ -613,9 +628,9 @@ function renderAlbumResults(albums) {
         card.className = 'album-card';
 
         const img = document.createElement('img');
-        setImageWithFallback(img, imageUrls);
         img.alt = album.name;
         img.className = 'album-cover';
+        const coverEl = setImageWithFallback(img, imageUrls);
 
         const infoDiv = document.createElement('div');
         infoDiv.className = 'album-info';
@@ -628,7 +643,7 @@ function renderAlbumResults(albums) {
 
         infoDiv.appendChild(strong);
         infoDiv.appendChild(span);
-        card.appendChild(img);
+        card.appendChild(coverEl);
         card.appendChild(infoDiv);
 
         card.addEventListener('click', () => selectAlbum(album));
@@ -1180,10 +1195,10 @@ function renderHistory(tracks) {
         const imageUrls = getSortedImageUrls(track.image);
 
         const coverImg = document.createElement('img');
-        setImageWithFallback(coverImg, imageUrls);
         coverImg.className = 'history-cover';
         coverImg.alt = track.album?.['#text'] || 'Album Cover';
-        item.appendChild(coverImg);
+        const coverEl = setImageWithFallback(coverImg, imageUrls);
+        item.appendChild(coverEl);
 
         const info = document.createElement('div');
         info.className = 'history-info';
