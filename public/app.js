@@ -1459,7 +1459,7 @@ function handleAlbumModeState(params) {
 if (token) {
     await handleAuthCallback(token);
 } else {
-    if (username) {
+    if (AppState.user.name) {
         showScrobbleUI();
         checkAuthStatus(false);
     } else {
