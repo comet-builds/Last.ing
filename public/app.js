@@ -1472,14 +1472,12 @@ function handleAlbumModeState(params) {
 
 if (token) {
     await handleAuthCallback(token);
+} else if (AppState.user.name) {
+    showScrobbleUI();
+    await checkAuthStatus(false);
 } else {
-    if (AppState.user.name) {
-        showScrobbleUI();
-        checkAuthStatus(false);
-    } else {
-        showAuthUI();
-        checkAuthStatus(false);
-    }
+    showAuthUI();
+    await checkAuthStatus(false);
 }
 
 if ('serviceWorker' in navigator) {
