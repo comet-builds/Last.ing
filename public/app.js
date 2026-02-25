@@ -259,34 +259,51 @@ function getSortedImageUrls(images, preferences = ['large', 'extralarge', 'mediu
     return sortedUrls;
 }
 
-function setImageWithFallback(imgElement, imageUrls) {
-    imgElement.onerror = null;
+function setImageWithFallback(element, imageUrls) {
+    const setFallback = (el) => {
+        if (el.tagName.toLowerCase() === 'svg') return el;
 
-    const setFallback = () => {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("class", imgElement.className);
-        if (imgElement.id) svg.setAttribute("id", imgElement.id);
-        if (imgElement.alt) svg.setAttribute("aria-label", imgElement.alt);
+        svg.setAttribute("class", el.className);
+        if (el.id) svg.setAttribute("id", el.id);
+        if (el.alt) svg.setAttribute("aria-label", el.alt);
 
         const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
         use.setAttribute("href", "assets/icons/sprite.svg#icon-laser-disc");
         svg.appendChild(use);
 
-        if (imgElement.parentNode) {
-            imgElement.parentNode.replaceChild(svg, imgElement);
+        if (el.parentNode) {
+            el.parentNode.replaceChild(svg, el);
         }
         return svg;
     };
 
     if (!imageUrls || imageUrls.length === 0) {
-        return setFallback();
+        return setFallback(element);
     }
+
+    let imgElement = element;
+    if (element.tagName.toLowerCase() === 'svg') {
+        const img = document.createElement('img');
+        const cls = element.getAttribute('class');
+        if (cls) img.className = cls;
+        if (element.id) img.id = element.id;
+        const label = element.getAttribute('aria-label');
+        if (label) img.alt = label;
+
+        if (element.parentNode) {
+            element.parentNode.replaceChild(img, element);
+        }
+        imgElement = img;
+    }
+
+    imgElement.onerror = null;
 
     let currentIndex = 0;
 
     const loadNext = () => {
         if (currentIndex >= imageUrls.length) {
-            setFallback();
+            setFallback(imgElement);
             return;
         }
 
@@ -753,8 +770,9 @@ function updateAlbumDetails(albumInfo) {
     }
 
     const imageUrls = getSortedImageUrls(albumInfo.image);
-    if (selectedAlbumCover) {
-        setImageWithFallback(selectedAlbumCover, imageUrls);
+    const currentCover = document.getElementById('selected-album-cover');
+    if (currentCover) {
+        setImageWithFallback(currentCover, imageUrls);
     }
 }
 
