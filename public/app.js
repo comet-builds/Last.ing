@@ -81,8 +81,8 @@ const DUPLICATE_WINDOW_SECONDS = 300;
 
 // --- Auth Functions ---
 
-async function checkAuthStatus() {
-    toggleSpinner(true);
+async function checkAuthStatus(showSpinner = true) {
+    if (showSpinner) toggleSpinner(true);
     try {
         const response = await fetch(`${CONFIG.BACKEND_URL}/check-auth`);
         const data = await response.json();
@@ -99,7 +99,7 @@ async function checkAuthStatus() {
         console.error('Check Auth Error:', error);
         showAuthUI();
     } finally {
-        toggleSpinner(false);
+        if (showSpinner) toggleSpinner(false);
     }
 }
 
@@ -1446,7 +1446,13 @@ function handleAlbumModeState(params) {
 if (token) {
     await handleAuthCallback(token);
 } else {
-    await checkAuthStatus();
+    if (username) {
+        showScrobbleUI();
+        checkAuthStatus(false);
+    } else {
+        showAuthUI();
+        checkAuthStatus(false);
+    }
 }
 
 if ('serviceWorker' in navigator) {
