@@ -1380,28 +1380,24 @@ if (trackNowBtn) {
     trackNowBtn.addEventListener('click', () => setTimestampToNow(dateInput, timeInput));
 }
 
-if (vaBtn) {
+if (vaBtn && albumArtistInput) {
     vaBtn.addEventListener('click', () => {
-        if (albumArtistInput) {
-            if (albumArtistInput.value === 'Various Artists') {
-                albumArtistInput.value = '';
-                vaBtn.classList.remove('active');
-            } else {
-                albumArtistInput.value = 'Various Artists';
-                vaBtn.classList.add('active');
-            }
+        if (albumArtistInput.value === 'Various Artists') {
+            albumArtistInput.value = '';
+            vaBtn.classList.remove('active');
+        } else {
+            albumArtistInput.value = 'Various Artists';
+            vaBtn.classList.add('active');
         }
     });
 
-    if (albumArtistInput) {
-        albumArtistInput.addEventListener('input', () => {
-             if (albumArtistInput.value === 'Various Artists') {
-                 vaBtn.classList.add('active');
-             } else {
-                 vaBtn.classList.remove('active');
-             }
-        });
-    }
+    albumArtistInput.addEventListener('input', () => {
+         if (albumArtistInput.value === 'Various Artists') {
+             vaBtn.classList.add('active');
+         } else {
+             vaBtn.classList.remove('active');
+         }
+    });
 }
 
 if (albumNowBtn) {
@@ -1476,14 +1472,12 @@ function handleAlbumModeState(params) {
 
 if (token) {
     await handleAuthCallback(token);
+} else if (AppState.user.name) {
+    showScrobbleUI();
+    await checkAuthStatus(false);
 } else {
-    if (AppState.user.name) {
-        showScrobbleUI();
-        checkAuthStatus(false);
-    } else {
-        showAuthUI();
-        checkAuthStatus(false);
-    }
+    showAuthUI();
+    await checkAuthStatus(false);
 }
 
 if ('serviceWorker' in navigator) {
