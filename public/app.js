@@ -71,18 +71,31 @@ const loadMoreHistoryBtn = document.getElementById('load-more-history-btn');
 const albumTracksNotFound = document.getElementById('album-tracks-not-found');
 const continueManualBtn = document.getElementById('continue-manual-btn');
 
-let username = localStorage.getItem(CONFIG.STORAGE_KEYS.USERNAME);
-let userImage = localStorage.getItem(CONFIG.STORAGE_KEYS.USER_IMAGE);
-let statusTimeout;
-let currentAlbumTracks = [];
-let historyPage = 1;
+const AppState = {
+    user: {
+        name: localStorage.getItem(CONFIG.STORAGE_KEYS.USERNAME),
+        image: localStorage.getItem(CONFIG.STORAGE_KEYS.USER_IMAGE)
+    },
+    ui: {
+        statusTimeout: null
+    },
+    album: {
+        tracks: []
+    },
+    history: {
+        page: 1,
+        tracks: []
+    }
+};
+
 const HISTORY_LIMIT = 50;
 const DUPLICATE_WINDOW_SECONDS = 300;
+const DEFAULT_TRACK_DURATION = 180;
 
 // --- Auth Functions ---
 
-async function checkAuthStatus() {
-    toggleSpinner(true);
+async function checkAuthStatus(showSpinner = true) {
+    if (showSpinner) toggleSpinner(true);
     try {
         const response = await fetch(`${CONFIG.BACKEND_URL}/check-auth`);
         const data = await response.json();
@@ -99,7 +112,7 @@ async function checkAuthStatus() {
         console.error('Check Auth Error:', error);
         showAuthUI();
     } finally {
-        toggleSpinner(false);
+        if (showSpinner) toggleSpinner(false);
     }
 }
 
@@ -113,13 +126,13 @@ function showScrobbleUI() {
     authSection.classList.add('hidden');
     scrobbleSection.classList.remove('hidden');
     headerUserInfo.classList.remove('hidden');
-    if (username) {
-        usernameDisplay.textContent = username;
-        usernameDisplay.href = `https://www.last.fm/user/${encodeLastFmParam(username)}`;
+    if (AppState.user.name) {
+        usernameDisplay.textContent = AppState.user.name;
+        usernameDisplay.href = `https://www.last.fm/user/${encodeLastFmParam(AppState.user.name)}`;
     }
 
-    if (userImage) {
-        userAvatar.src = userImage;
+    if (AppState.user.image) {
+        userAvatar.src = AppState.user.image;
         userAvatar.classList.remove('hidden');
     } else {
         userAvatar.classList.add('hidden');
@@ -194,8 +207,8 @@ logoutBtn.addEventListener('click', async () => {
 
     localStorage.removeItem(CONFIG.STORAGE_KEYS.USERNAME);
     localStorage.removeItem(CONFIG.STORAGE_KEYS.USER_IMAGE);
-    username = null;
-    userImage = null;
+    AppState.user.name = null;
+    AppState.user.image = null;
     showAuthUI();
 });
 
@@ -207,22 +220,22 @@ function encodeLastFmParam(param) {
 }
 
 function updateUserSession(name, images) {
-    username = name;
-    localStorage.setItem(CONFIG.STORAGE_KEYS.USERNAME, username);
+    AppState.user.name = name;
+    localStorage.setItem(CONFIG.STORAGE_KEYS.USERNAME, AppState.user.name);
 
-    userImage = null;
+    AppState.user.image = null;
     localStorage.removeItem(CONFIG.STORAGE_KEYS.USER_IMAGE);
 
     if (images) {
         const imageUrls = getSortedImageUrls(images, ['small']);
         if (imageUrls.length > 0) {
-            userImage = imageUrls[0];
+            AppState.user.image = imageUrls[0];
 
-            if (userImage.startsWith('https://lastfm.freetls.fastly.net/i/u/')) {
-                userImage = userImage.replace('https://lastfm.freetls.fastly.net/i/u/34', 'https://lastfm.freetls.fastly.net/i/u/avatar42');
+            if (AppState.user.image.startsWith('https://lastfm.freetls.fastly.net/i/u/')) {
+                AppState.user.image = AppState.user.image.replace('https://lastfm.freetls.fastly.net/i/u/34', 'https://lastfm.freetls.fastly.net/i/u/avatar42');
             }
 
-            localStorage.setItem(CONFIG.STORAGE_KEYS.USER_IMAGE, userImage);
+            localStorage.setItem(CONFIG.STORAGE_KEYS.USER_IMAGE, AppState.user.image);
         }
     }
 }
@@ -295,9 +308,9 @@ function showStatus(message, type) {
         message = message.slice(0, -1);
     }
 
-    if (statusTimeout) {
-        clearTimeout(statusTimeout);
-        statusTimeout = null;
+    if (AppState.ui.statusTimeout) {
+        clearTimeout(AppState.ui.statusTimeout);
+        AppState.ui.statusTimeout = null;
     }
 
     statusMessage.textContent = message;
@@ -306,16 +319,16 @@ function showStatus(message, type) {
 
     statusMessage.classList.add('toast');
 
-    statusTimeout = setTimeout(() => {
+    AppState.ui.statusTimeout = setTimeout(() => {
         statusMessage.classList.add('hidden');
-        statusTimeout = null;
+        AppState.ui.statusTimeout = null;
     }, 5000);
 }
 
 function hideStatus() {
-    if (statusTimeout) {
-        clearTimeout(statusTimeout);
-        statusTimeout = null;
+    if (AppState.ui.statusTimeout) {
+        clearTimeout(AppState.ui.statusTimeout);
+        AppState.ui.statusTimeout = null;
     }
     statusMessage.classList.add('hidden');
 }
@@ -702,7 +715,7 @@ function prepareVerificationView(albumInfo) {
     toggleVerificationView(true);
     updateAlbumDetails(albumInfo);
 
-    currentAlbumTracks = [];
+    AppState.album.tracks = [];
     const tracks = albumInfo.tracks?.track || [];
     const trackArray = Array.isArray(tracks) ? tracks : [tracks];
 
@@ -799,7 +812,7 @@ function renderAlbumTracks(trackArray, albumInfo) {
         selectAllBtn.classList.toggle('active');
         const checked = selectAllBtn.classList.contains('active');
 
-        currentAlbumTracks.forEach(track => {
+        AppState.album.tracks.forEach(track => {
             if (track.checkbox) {
                 track.checkbox.checked = checked;
             }
@@ -831,7 +844,7 @@ function renderAlbumTracks(trackArray, albumInfo) {
 }
 
 function createTrackRow(track, index, albumInfo) {
-    const duration = Number.parseInt(track.duration) || 180;
+    const duration = Number.parseInt(track.duration) || DEFAULT_TRACK_DURATION;
 
     const trackObj = {
         name: track.name,
@@ -840,7 +853,7 @@ function createTrackRow(track, index, albumInfo) {
         album: albumInfo.name,
         albumArtist: albumInfo.artist
     };
-    currentAlbumTracks.push(trackObj);
+    AppState.album.tracks.push(trackObj);
 
     const row = document.createElement('div');
     row.className = 'track-row';
@@ -909,7 +922,7 @@ function updateTrackTimestamps() {
     if (!endTimestamp) return;
 
     const checkedIndices = [];
-    currentAlbumTracks.forEach((track, index) => {
+    AppState.album.tracks.forEach((track, index) => {
         if (track.checkbox?.checked) {
             checkedIndices.push(index);
         } else if (track.timestampSpan) {
@@ -923,7 +936,7 @@ function updateTrackTimestamps() {
 
     for (let i = checkedIndices.length - 1; i >= 0; i--) {
         const trackIndex = checkedIndices[i];
-        const track = currentAlbumTracks[trackIndex];
+        const track = AppState.album.tracks[trackIndex];
 
         track.calculatedTimestamp = currentStart;
 
@@ -938,7 +951,7 @@ function updateTrackTimestamps() {
 
         if (i > 0) {
             const prevTrackIndex = checkedIndices[i-1];
-            const prevTrack = currentAlbumTracks[prevTrackIndex];
+            const prevTrack = AppState.album.tracks[prevTrackIndex];
             currentStart -= prevTrack.duration;
         }
     }
@@ -1001,7 +1014,7 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
     const finalAlbumName = selectedAlbumName.value;
     const finalAlbumArtist = selectedAlbumArtist.value;
 
-    currentAlbumTracks.forEach((track) => {
+    AppState.album.tracks.forEach((track) => {
         if (track.checkbox?.checked) {
             if (!track.calculatedTimestamp) return;
 
@@ -1064,20 +1077,20 @@ if (reloadHistoryBtn) {
 
 if (loadMoreHistoryBtn) {
     loadMoreHistoryBtn.addEventListener('click', () => {
-        historyPage++;
+        AppState.history.page++;
         loadHistory(true);
     });
 }
 
 function resetHistoryView() {
-    historyPage = 1;
+    AppState.history.page = 1;
     historyList.innerHTML = '';
-    globalThis.cachedHistoryTracks = [];
+    AppState.history.tracks = [];
     if (loadMoreHistoryBtn) loadMoreHistoryBtn.classList.add('hidden');
 }
 
 async function fetchHistoryTracks(page) {
-    const response = await fetch(`${CONFIG.BACKEND_URL}/get-recent-tracks?user=${username}&limit=${HISTORY_LIMIT}&page=${page}`);
+    const response = await fetch(`${CONFIG.BACKEND_URL}/get-recent-tracks?user=${AppState.user.name}&limit=${HISTORY_LIMIT}&page=${page}`);
     const data = await response.json();
 
     if (data.error) {
@@ -1098,15 +1111,15 @@ function updateLoadMoreButton(trackCount) {
 }
 
 function updateHistoryCache(newTracks, append) {
-    if (append && globalThis.cachedHistoryTracks) {
-        globalThis.cachedHistoryTracks = [...globalThis.cachedHistoryTracks, ...newTracks];
+    if (append && AppState.history.tracks.length > 0) {
+        AppState.history.tracks = [...AppState.history.tracks, ...newTracks];
     } else {
-        globalThis.cachedHistoryTracks = newTracks;
+        AppState.history.tracks = newTracks;
     }
 }
 
 async function loadHistory(append = false) {
-    if (!username) {
+    if (!AppState.user.name) {
         showStatus('Please login first', 'error');
         return;
     }
@@ -1118,13 +1131,13 @@ async function loadHistory(append = false) {
     toggleSpinner(true);
 
     try {
-        const newTracks = await fetchHistoryTracks(historyPage);
+        const newTracks = await fetchHistoryTracks(AppState.history.page);
 
         updateLoadMoreButton(newTracks.length);
         updateHistoryCache(newTracks, append);
 
         const scrollPos = globalThis.scrollY;
-        renderHistory(globalThis.cachedHistoryTracks);
+        renderHistory(AppState.history.tracks);
         if (append) globalThis.scrollTo(0, scrollPos);
 
     } catch (error) {
@@ -1301,8 +1314,8 @@ function renderHistory(tracks) {
 
 filterNoAlbum.addEventListener('click', () => {
    filterNoAlbum.classList.toggle('active');
-   if (globalThis.cachedHistoryTracks) {
-       renderHistory(globalThis.cachedHistoryTracks);
+   if (AppState.history.tracks.length > 0) {
+       renderHistory(AppState.history.tracks);
    } else {
        loadHistory();
    }
@@ -1310,8 +1323,8 @@ filterNoAlbum.addEventListener('click', () => {
 
 filterDuplicates.addEventListener('click', () => {
    filterDuplicates.classList.toggle('active');
-   if (globalThis.cachedHistoryTracks) {
-       renderHistory(globalThis.cachedHistoryTracks);
+   if (AppState.history.tracks.length > 0) {
+       renderHistory(AppState.history.tracks);
    } else {
        loadHistory();
    }
@@ -1326,7 +1339,7 @@ async function deleteScrobble(timestamp) {
     const day = String(dateObj.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
 
-    const url = `https://www.last.fm/user/${encodeLastFmParam(username)}/library?from=${dateStr}&to=${dateStr}`;
+    const url = `https://www.last.fm/user/${encodeLastFmParam(AppState.user.name)}/library?from=${dateStr}&to=${dateStr}`;
 
     globalThis.open(url, '_blank');
 }
@@ -1446,7 +1459,13 @@ function handleAlbumModeState(params) {
 if (token) {
     await handleAuthCallback(token);
 } else {
-    await checkAuthStatus();
+    if (username) {
+        showScrobbleUI();
+        checkAuthStatus(false);
+    } else {
+        showAuthUI();
+        checkAuthStatus(false);
+    }
 }
 
 if ('serviceWorker' in navigator) {
