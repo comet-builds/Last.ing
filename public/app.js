@@ -78,6 +78,7 @@ let currentAlbumTracks = [];
 let historyPage = 1;
 const HISTORY_LIMIT = 50;
 const DUPLICATE_WINDOW_SECONDS = 300;
+const DEFAULT_TRACK_DURATION = 180;
 
 // --- Auth Functions ---
 
@@ -831,7 +832,7 @@ function renderAlbumTracks(trackArray, albumInfo) {
 }
 
 function createTrackRow(track, index, albumInfo) {
-    const duration = Number.parseInt(track.duration) || 180;
+    const duration = Number.parseInt(track.duration) || DEFAULT_TRACK_DURATION;
 
     const trackObj = {
         name: track.name,
