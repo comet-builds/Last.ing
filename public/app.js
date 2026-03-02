@@ -153,10 +153,10 @@ loginBtn.addEventListener('click', async () => {
             throw new Error(data.error);
         }
 
-        if (data.url) {
+        if (data.url && isValidUrl(data.url)) {
             globalThis.location.href = data.url;
         } else {
-            throw new Error('No login URL returned from server');
+            throw new Error('No valid login URL returned from server');
         }
     } catch (error) {
         console.error('Login Error:', error);
@@ -217,6 +217,10 @@ logoutBtn.addEventListener('click', async () => {
 function encodeLastFmParam(param) {
     if (!param) return '';
     return encodeURIComponent(param).replaceAll('%20', '+').replaceAll('%2B', '%252B');
+}
+
+function isValidUrl(url) {
+    return typeof url === 'string' && url.startsWith('https://');
 }
 
 function updateUserSession(name, images) {
@@ -912,7 +916,7 @@ function createTrackRow(track, index, albumInfo) {
     nameLink.className = 'track-name';
     nameLink.textContent = track.name;
 
-    if (track.url) {
+    if (track.url && isValidUrl(track.url)) {
         nameLink.href = track.url;
     } else {
         nameLink.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist?.name || albumInfo.artist)}/_/${encodeLastFmParam(track.name)}`;
