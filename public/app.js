@@ -1064,7 +1064,7 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
     }
 
     try {
-        await Promise.all(batches.map(async (batch) => {
+        for (const batch of batches) {
              const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble-batch`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1075,7 +1075,7 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
             if (data.error) {
                 throw new Error(data.message || 'Batch scrobble failed');
             }
-        }));
+        }
 
         showStatus('Scrobbled', 'success');
 
