@@ -342,14 +342,6 @@ function showStatus(message, type) {
     }, 5000);
 }
 
-function hideStatus() {
-    if (AppState.ui.statusTimeout) {
-        clearTimeout(AppState.ui.statusTimeout);
-        AppState.ui.statusTimeout = null;
-    }
-    statusMessage.classList.add('hidden');
-}
-
 function toggleSpinner(show) {
     if (show) {
         loadingSpinnerContainer.classList.remove('hidden');
