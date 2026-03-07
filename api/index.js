@@ -608,7 +608,7 @@ app.post('/api/scrobble-batch', async (req, res) => {
 });
 
 app.get('/api/get-recent-tracks', async (req, res) => {
-    const { user, limit = 50, page = 1 } = req.query;
+    let { user, limit = 50, page = 1 } = req.query;
 
     if (!ensureString(user)) {
         return res.status(400).json({ error: 'Invalid parameter: user must be a string under 500 characters' });
@@ -617,6 +617,13 @@ app.get('/api/get-recent-tracks', async (req, res) => {
     if (user === undefined || user === '') {
         return res.status(400).json({ error: 'Missing required parameter: user' });
     }
+
+    limit = parseInt(limit, 10);
+    if (isNaN(limit) || limit < 1) limit = 50;
+    if (limit > 200) limit = 200;
+
+    page = parseInt(page, 10);
+    if (isNaN(page) || page < 1) page = 1;
 
     try {
         const data = await makeLastFmRequest('user.getRecentTracks', { user, limit, page });
