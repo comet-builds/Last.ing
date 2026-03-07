@@ -73,6 +73,8 @@ class SimpleLRUCache {
 }
 
 const albumCache = new SimpleLRUCache(500);
+const mbMbidCache = new SimpleLRUCache(500);
+const mbTracklistCache = new SimpleLRUCache(500);
 
 // --- Helper Functions ---
 
@@ -89,63 +91,96 @@ const isValidUUID = (val) => {
 };
 
 const searchMusicBrainzRelease = async (artist, album) => {
+    const cacheKey = `${artist}|${album}`;
+    const cachedData = mbMbidCache.get(cacheKey);
+
+    if (cachedData !== undefined) {
+        return cachedData;
+    }
+
     const query = `release:${album} AND artist:${artist}`;
     const searchUrl = `${MUSICBRAINZ_API_ROOT}release/`;
 
-    const searchResponse = await apiClient.get(searchUrl, {
-        params: {
-            query: query,
-            fmt: 'json'
-        },
-        headers: {
-            'User-Agent': MUSICBRAINZ_USER_AGENT
-        }
-    });
+    try {
+        const searchResponse = await apiClient.get(searchUrl, {
+            params: {
+                query: query,
+                fmt: 'json'
+            },
+            headers: {
+                'User-Agent': MUSICBRAINZ_USER_AGENT
+            }
+        });
 
-    const releases = searchResponse.data.releases;
-    if (releases && releases.length > 0) {
-        // Use the first result
-        return releases[0].id;
+        const releases = searchResponse.data.releases;
+        if (releases && releases.length > 0) {
+            // Use the first result
+            const mbid = releases[0].id;
+            mbMbidCache.set(cacheKey, mbid);
+            return mbid;
+        }
+
+        // Cache negative result
+        mbMbidCache.set(cacheKey, null);
+        return null;
+    } catch (error) {
+        // Do not cache on error so it can retry later
+        throw error;
     }
-    return null;
 };
 
 const getReleaseTracks = async (mbid, defaultArtist) => {
-    const lookupUrl = `${MUSICBRAINZ_API_ROOT}release/${encodeURIComponent(mbid)}`;
-    const lookupResponse = await apiClient.get(lookupUrl, {
-        params: {
-            inc: 'recordings+artist-credits',
-            fmt: 'json'
-        },
-        headers: {
-            'User-Agent': MUSICBRAINZ_USER_AGENT
-        }
-    });
+    const cacheKey = mbid;
+    const cachedData = mbTracklistCache.get(cacheKey);
 
-    const media = lookupResponse.data.media;
-    if (!media || media.length === 0) {
-        return [];
+    if (cachedData !== undefined) {
+        return cachedData;
     }
 
-    const tracks = [];
-    let rank = 1;
+    const lookupUrl = `${MUSICBRAINZ_API_ROOT}release/${encodeURIComponent(mbid)}`;
 
-    media.forEach(medium => {
-        if (medium.tracks) {
-            medium.tracks.forEach(track => {
-                tracks.push({
-                    name: track.title,
-                    duration: Math.round(track.length / 1000), // Convert ms to seconds
-                    artist: {
-                        name: track['artist-credit']?.[0]?.artist?.name || defaultArtist
-                    },
-                    rank: rank++
-                });
-            });
+    try {
+        const lookupResponse = await apiClient.get(lookupUrl, {
+            params: {
+                inc: 'recordings+artist-credits',
+                fmt: 'json'
+            },
+            headers: {
+                'User-Agent': MUSICBRAINZ_USER_AGENT
+            }
+        });
+
+        const media = lookupResponse.data.media;
+        if (!media || media.length === 0) {
+            // Cache negative result
+            mbTracklistCache.set(cacheKey, []);
+            return [];
         }
-    });
 
-    return tracks;
+        const tracks = [];
+        let rank = 1;
+
+        media.forEach(medium => {
+            if (medium.tracks) {
+                medium.tracks.forEach(track => {
+                    tracks.push({
+                        name: track.title,
+                        duration: Math.round(track.length / 1000), // Convert ms to seconds
+                        artist: {
+                            name: track['artist-credit']?.[0]?.artist?.name || defaultArtist
+                        },
+                        rank: rank++
+                    });
+                });
+            }
+        });
+
+        mbTracklistCache.set(cacheKey, tracks);
+        return tracks;
+    } catch (error) {
+        // Do not cache on error
+        throw error;
+    }
 };
 
 const getMusicBrainzTracklist = async (artist, album, mbid) => {
