@@ -856,21 +856,7 @@ function renderAlbumTracks(trackArray, albumInfo) {
     setTimeout(updateTrackTimestamps, 0);
 }
 
-function createTrackRow(track, index, albumInfo) {
-    const duration = Number.parseInt(track.duration) || DEFAULT_TRACK_DURATION;
-
-    const trackObj = {
-        name: track.name,
-        artist: track.artist?.name || albumInfo.artist,
-        duration: duration,
-        album: albumInfo.name,
-        albumArtist: albumInfo.artist
-    };
-    AppState.album.tracks.push(trackObj);
-
-    const row = document.createElement('div');
-    row.className = 'track-row';
-
+function createTrackCheckboxWrapper(trackObj, index) {
     const checkboxWrapper = document.createElement('div');
     checkboxWrapper.className = 'checkbox-wrapper';
 
@@ -888,14 +874,10 @@ function createTrackRow(track, index, albumInfo) {
     checkboxWrapper.appendChild(checkbox);
     checkboxWrapper.appendChild(customCheckbox);
 
-    row.addEventListener('click', (e) => {
-        if (e.target === checkbox) return;
-        if (e.target.tagName === 'A') return;
+    return checkboxWrapper;
+}
 
-        checkbox.checked = !checkbox.checked;
-        updateTrackTimestamps();
-    });
-
+function createTrackInfo(track, index, trackObj, albumInfo) {
     const trackInfo = document.createElement('div');
     trackInfo.className = 'track-info';
 
@@ -923,6 +905,35 @@ function createTrackRow(track, index, albumInfo) {
     trackInfo.appendChild(numSpan);
     trackInfo.appendChild(nameLink);
     trackInfo.appendChild(timestampSpan);
+
+    return trackInfo;
+}
+
+function createTrackRow(track, index, albumInfo) {
+    const duration = Number.parseInt(track.duration) || DEFAULT_TRACK_DURATION;
+
+    const trackObj = {
+        name: track.name,
+        artist: track.artist?.name || albumInfo.artist,
+        duration: duration,
+        album: albumInfo.name,
+        albumArtist: albumInfo.artist
+    };
+    AppState.album.tracks.push(trackObj);
+
+    const row = document.createElement('div');
+    row.className = 'track-row';
+
+    const checkboxWrapper = createTrackCheckboxWrapper(trackObj, index);
+    const trackInfo = createTrackInfo(track, index, trackObj, albumInfo);
+
+    row.addEventListener('click', (e) => {
+        if (e.target === trackObj.checkbox) return;
+        if (e.target.tagName === 'A') return;
+
+        trackObj.checkbox.checked = !trackObj.checkbox.checked;
+        updateTrackTimestamps();
+    });
 
     row.appendChild(checkboxWrapper);
     row.appendChild(trackInfo);
