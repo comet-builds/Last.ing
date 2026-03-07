@@ -306,6 +306,58 @@ const getAlbumInfoFromTrack = (trackInfo) => {
     return null;
 };
 
+const validateBatchScrobbleTracks = (tracks) => {
+    if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
+        return { isValid: false, error: 'Missing tracks array' };
+    }
+
+    if (tracks.length > 50) {
+        return { isValid: false, error: 'Batch limit exceeded: Max 50 tracks per request' };
+    }
+
+    for (let i = 0; i < tracks.length; i++) {
+        const trackData = tracks[i];
+        if (!trackData || typeof trackData !== 'object') {
+            return { isValid: false, error: `Invalid track data at index ${i}` };
+        }
+
+        const { artist, track, timestamp, album, albumArtist } = trackData;
+
+        if (!artist || !track || !timestamp) {
+            return { isValid: false, error: `Missing required fields at index ${i} (artist, track, timestamp)` };
+        }
+
+        if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
+            return { isValid: false, error: `Invalid data types at index ${i}: artist, track, album, and albumArtist must be strings under 500 characters` };
+        }
+
+        if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
+            return { isValid: false, error: `Invalid data type at index ${i}: timestamp must be an integer` };
+        }
+    }
+
+    return { isValid: true };
+};
+
+const formatBatchScrobbleParams = (tracks, sessionKey) => {
+    const params = { sk: sessionKey };
+
+    tracks.forEach((trackData, index) => {
+        params[`artist[${index}]`] = trackData.artist;
+        params[`track[${index}]`] = trackData.track;
+        params[`timestamp[${index}]`] = trackData.timestamp;
+
+        if (trackData.album) {
+            params[`album[${index}]`] = trackData.album;
+        }
+        if (trackData.albumArtist) {
+            params[`albumArtist[${index}]`] = trackData.albumArtist;
+        }
+    });
+
+    return params;
+};
+
 // --- Routes ---
 
 app.get('/api/login-url', (req, res) => {
@@ -621,54 +673,15 @@ app.post('/api/scrobble-batch', async (req, res) => {
         return res.status(401).json({ error: 'Unauthorized: No session key found' });
     }
 
-    if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
-        return res.status(400).json({ error: 'Missing tracks array' });
-    }
-
-    if (tracks.length > 50) {
-        return res.status(400).json({ error: 'Batch limit exceeded: Max 50 tracks per request' });
-    }
-
-    for (let i = 0; i < tracks.length; i++) {
-        const trackData = tracks[i];
-        if (!trackData || typeof trackData !== 'object') {
-            return res.status(400).json({ error: `Invalid track data at index ${i}` });
-        }
-
-        const { artist, track, timestamp, album, albumArtist } = trackData;
-
-        if (!artist || !track || !timestamp) {
-            return res.status(400).json({ error: `Missing required fields at index ${i} (artist, track, timestamp)` });
-        }
-
-        if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
-            return res.status(400).json({ error: `Invalid data types at index ${i}: artist, track, album, and albumArtist must be strings under 500 characters` });
-        }
-
-        if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
-            return res.status(400).json({ error: `Invalid data type at index ${i}: timestamp must be an integer` });
-        }
+    const validationResult = validateBatchScrobbleTracks(tracks);
+    if (!validationResult.isValid) {
+        return res.status(400).json({ error: validationResult.error });
     }
 
     try {
-        const params = { sk: sessionKey };
-
-        tracks.forEach((trackData, index) => {
-            params[`artist[${index}]`] = trackData.artist;
-            params[`track[${index}]`] = trackData.track;
-            params[`timestamp[${index}]`] = trackData.timestamp;
-
-            if (trackData.album) {
-                params[`album[${index}]`] = trackData.album;
-            }
-            if (trackData.albumArtist) {
-                params[`albumArtist[${index}]`] = trackData.albumArtist;
-            }
-        });
-
+        const params = formatBatchScrobbleParams(tracks, sessionKey);
         const data = await makeLastFmRequest('track.scrobble', params, { signed: true, httpMethod: 'POST' });
         return res.json(data);
-
     } catch (error) {
         handleRouteError(res, error, 'Failed to scrobble batch');
     }
