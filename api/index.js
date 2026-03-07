@@ -358,6 +358,90 @@ const formatBatchScrobbleParams = (tracks, sessionKey) => {
     return params;
 };
 
+
+const lookupTrackAlbums = async (artist, track) => {
+    const directLookupPromise = (async () => {
+        const cacheKey = `track:${artist}|${track}`;
+        const cachedData = albumCache.get(cacheKey);
+        if (cachedData !== undefined) {
+            return cachedData;
+        }
+        try {
+            const data = await makeLastFmRequest('track.getInfo', { artist, track });
+            const albumInfo = getAlbumInfoFromTrack(data.track);
+            albumCache.set(cacheKey, albumInfo);
+            return albumInfo;
+        } catch (e) {
+            console.warn('Direct lookup failed:', e.message);
+            albumCache.set(cacheKey, null);
+            return null;
+        }
+    })();
+
+    const searchResponsePromise = makeLastFmRequest('track.search', { track, artist, limit: 5 });
+
+    const [directAlbum, searchData] = await Promise.all([directLookupPromise, searchResponsePromise]);
+    const tracks = searchData?.results?.trackmatches?.track || [];
+
+    const matchAlbums = [];
+    const chunkSize = 2; // Concurrency limit to avoid Last.fm rate limits (5 req/sec)
+
+    for (let i = 0; i < tracks.length; i += chunkSize) {
+        const chunk = tracks.slice(i, i + chunkSize);
+        const chunkPromises = chunk.map(async (trackMatch) => {
+            const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : `track:${trackMatch.artist}|${trackMatch.name}`;
+            const cachedData = albumCache.get(cacheKey);
+            if (cachedData !== undefined) {
+                return cachedData;
+            }
+            try {
+                const params = {};
+                if (trackMatch.mbid) {
+                    params.mbid = trackMatch.mbid;
+                } else {
+                    params.artist = trackMatch.artist;
+                    params.track = trackMatch.name;
+                }
+
+                const data = await makeLastFmRequest('track.getInfo', params);
+                const albumInfo = getAlbumInfoFromTrack(data.track);
+                albumCache.set(cacheKey, albumInfo);
+                return albumInfo;
+            } catch (e) {
+                console.warn('Match lookup failed:', e.message);
+                albumCache.set(cacheKey, null);
+                return null;
+            }
+        });
+
+        const chunkResults = await Promise.all(chunkPromises);
+        matchAlbums.push(...chunkResults);
+    }
+
+    const allAlbums = [directAlbum, ...matchAlbums].filter(Boolean);
+
+    const uniqueAlbums = [];
+    const seen = new Map();
+
+    for (const album of allAlbums) {
+        const nameLower = album.name.toLowerCase();
+        let artistSet = seen.get(nameLower);
+
+        if (!artistSet) {
+            artistSet = new Set();
+            seen.set(nameLower, artistSet);
+        }
+
+        const artistLower = album.artist.toLowerCase();
+        if (!artistSet.has(artistLower)) {
+            artistSet.add(artistLower);
+            uniqueAlbums.push(album);
+        }
+    }
+
+    return uniqueAlbums;
+};
+
 // --- Routes ---
 
 app.get('/api/login-url', (req, res) => {
@@ -486,88 +570,10 @@ app.get('/api/lookup-track-albums', async (req, res) => {
         return res.status(400).json({ error: 'Missing required parameters: artist and track' });
     }
 
+
     try {
-        const directLookupPromise = (async () => {
-            const cacheKey = `track:${artist}|${track}`;
-            const cachedData = albumCache.get(cacheKey);
-            if (cachedData !== undefined) {
-                return cachedData;
-            }
-            try {
-                const data = await makeLastFmRequest('track.getInfo', { artist, track });
-                const albumInfo = getAlbumInfoFromTrack(data.track);
-                albumCache.set(cacheKey, albumInfo);
-                return albumInfo;
-            } catch (e) {
-                console.warn('Direct lookup failed:', e.message);
-                albumCache.set(cacheKey, null);
-                return null;
-            }
-        })();
-
-        const searchResponsePromise = makeLastFmRequest('track.search', { track, artist, limit: 5 });
-
-        const [directAlbum, searchData] = await Promise.all([directLookupPromise, searchResponsePromise]);
-        const tracks = searchData?.results?.trackmatches?.track || [];
-
-        const matchAlbums = [];
-        const chunkSize = 2; // Concurrency limit to avoid Last.fm rate limits (5 req/sec)
-
-        for (let i = 0; i < tracks.length; i += chunkSize) {
-            const chunk = tracks.slice(i, i + chunkSize);
-            const chunkPromises = chunk.map(async (trackMatch) => {
-                const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : `track:${trackMatch.artist}|${trackMatch.name}`;
-                const cachedData = albumCache.get(cacheKey);
-                if (cachedData !== undefined) {
-                    return cachedData;
-                }
-                try {
-                    const params = {};
-                    if (trackMatch.mbid) {
-                        params.mbid = trackMatch.mbid;
-                    } else {
-                        params.artist = trackMatch.artist;
-                        params.track = trackMatch.name;
-                    }
-
-                    const data = await makeLastFmRequest('track.getInfo', params);
-                    const albumInfo = getAlbumInfoFromTrack(data.track);
-                    albumCache.set(cacheKey, albumInfo);
-                    return albumInfo;
-                } catch (e) {
-                    console.warn('Match lookup failed:', e.message);
-                    albumCache.set(cacheKey, null);
-                    return null;
-                }
-            });
-
-            const chunkResults = await Promise.all(chunkPromises);
-            matchAlbums.push(...chunkResults);
-        }
-
-        const allAlbums = [directAlbum, ...matchAlbums].filter(Boolean);
-
-        const uniqueAlbums = [];
-        const seen = new Map();
-
-        for (const album of allAlbums) {
-            const nameLower = album.name.toLowerCase();
-            let artistSet = seen.get(nameLower);
-
-            if (!artistSet) {
-                artistSet = new Set();
-                seen.set(nameLower, artistSet);
-            }
-
-            const artistLower = album.artist.toLowerCase();
-            if (!artistSet.has(artistLower)) {
-                artistSet.add(artistLower);
-                uniqueAlbums.push(album);
-            }
-        }
-
+        const uniqueAlbums = await lookupTrackAlbums(artist, track);
         res.json({ albums: uniqueAlbums });
-
     } catch (error) {
         handleRouteError(res, error, 'Failed to lookup albums');
     }
