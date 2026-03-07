@@ -58,7 +58,6 @@ const selectedAlbumName = document.getElementById('selected-album-name');
 const selectedAlbumArtist = document.getElementById('selected-album-artist');
 const albumLinkDisplay = document.getElementById('album-link-display');
 const artistLinkDisplay = document.getElementById('artist-link-display');
-const selectedAlbumCover = document.getElementById('selected-album-cover');
 const editAlbumBtn = document.getElementById('edit-album-btn');
 const albumViewMode = document.getElementById('album-view-mode');
 const albumEditMode = document.getElementById('album-edit-mode');
