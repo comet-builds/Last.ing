@@ -76,6 +76,18 @@ const albumCache = new SimpleLRUCache(500);
 
 // --- Helper Functions ---
 
+const ensureString = (val, maxLength = 500) => {
+    if (typeof val !== 'string') return false;
+    if (val.length > maxLength) return false;
+    return true;
+};
+
+const isValidUUID = (val) => {
+    if (typeof val !== 'string') return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(val);
+};
+
 const searchMusicBrainzRelease = async (artist, album) => {
     const query = `release:${album} AND artist:${artist}`;
     const searchUrl = `${MUSICBRAINZ_API_ROOT}release/`;
@@ -139,9 +151,8 @@ const getReleaseTracks = async (mbid, defaultArtist) => {
 const getMusicBrainzTracklist = async (artist, album, mbid) => {
     try {
         let releaseMbid = mbid;
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-        if (releaseMbid && !uuidRegex.test(releaseMbid)) {
+        if (releaseMbid && !isValidUUID(releaseMbid)) {
             console.warn('Invalid MBID format provided');
             releaseMbid = null;
         }
@@ -350,8 +361,8 @@ app.post('/api/scrobble', async (req, res) => {
         return res.status(400).json({ error: 'Missing required fields (artist, track, timestamp)' });
     }
 
-    if (typeof artist !== 'string' || typeof track !== 'string' || (album && typeof album !== 'string') || (albumArtist && typeof albumArtist !== 'string')) {
-        return res.status(400).json({ error: 'Invalid data types: artist, track, album, and albumArtist must be strings' });
+    if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
+        return res.status(400).json({ error: 'Invalid data types: artist, track, album, and albumArtist must be strings under 500 characters' });
     }
 
     if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
@@ -380,7 +391,11 @@ app.post('/api/scrobble', async (req, res) => {
 app.get('/api/lookup-track-albums', async (req, res) => {
     const { artist, track } = req.query;
 
-    if (!artist || !track) {
+    if (!ensureString(artist) || !ensureString(track)) {
+        return res.status(400).json({ error: 'Invalid parameters: artist and track must be strings under 500 characters' });
+    }
+
+    if (artist === undefined || track === undefined || artist === '' || track === '') {
         return res.status(400).json({ error: 'Missing required parameters: artist and track' });
     }
 
@@ -442,7 +457,11 @@ app.get('/api/lookup-track-albums', async (req, res) => {
 app.get('/api/search-album', async (req, res) => {
     const { query } = req.query;
 
-    if (!query) {
+    if (!ensureString(query)) {
+        return res.status(400).json({ error: 'Invalid query parameter: must be a string under 500 characters' });
+    }
+
+    if (query === undefined || query === '') {
         return res.status(400).json({ error: 'Missing query parameter' });
     }
 
@@ -457,8 +476,28 @@ app.get('/api/search-album', async (req, res) => {
 app.get('/api/get-album-info', async (req, res) => {
     const { artist, album, mbid } = req.query;
 
-    if ((!artist || !album) && !mbid) {
+    const hasMbid = mbid !== undefined && mbid !== '';
+    const hasArtistAlbum = artist !== undefined && album !== undefined;
+
+    if (hasMbid && !isValidUUID(mbid)) {
+        return res.status(400).json({ error: 'Invalid mbid format: must be a valid UUID string' });
+    }
+
+    if (!hasArtistAlbum && !hasMbid) {
+        // If neither are provided in the right format, check if they passed array/obj
+        // If they did pass *something* but it's not a string, complain about that.
+        if (artist !== undefined || album !== undefined) {
+            if (!ensureString(artist) || !ensureString(album)) {
+                 return res.status(400).json({ error: 'Invalid parameters: artist and album must be strings under 500 characters' });
+            }
+        }
         return res.status(400).json({ error: 'Missing required parameters: (artist and album) or mbid' });
+    }
+
+    if (!hasMbid) {
+        if (!ensureString(artist) || !ensureString(album)) {
+            return res.status(400).json({ error: 'Invalid parameters: artist and album must be strings under 500 characters' });
+        }
     }
 
     try {
@@ -535,8 +574,8 @@ app.post('/api/scrobble-batch', async (req, res) => {
             return res.status(400).json({ error: `Missing required fields at index ${i} (artist, track, timestamp)` });
         }
 
-        if (typeof artist !== 'string' || typeof track !== 'string' || (album && typeof album !== 'string') || (albumArtist && typeof albumArtist !== 'string')) {
-            return res.status(400).json({ error: `Invalid data types at index ${i}: artist, track, album, and albumArtist must be strings` });
+        if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
+            return res.status(400).json({ error: `Invalid data types at index ${i}: artist, track, album, and albumArtist must be strings under 500 characters` });
         }
 
         if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
@@ -571,7 +610,11 @@ app.post('/api/scrobble-batch', async (req, res) => {
 app.get('/api/get-recent-tracks', async (req, res) => {
     const { user, limit = 50, page = 1 } = req.query;
 
-    if (!user) {
+    if (!ensureString(user)) {
+        return res.status(400).json({ error: 'Invalid parameter: user must be a string under 500 characters' });
+    }
+
+    if (user === undefined || user === '') {
         return res.status(400).json({ error: 'Missing required parameter: user' });
     }
 
