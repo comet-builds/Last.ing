@@ -704,12 +704,12 @@ app.get('/api/get-recent-tracks', async (req, res) => {
         return res.status(400).json({ error: 'Missing required parameter: user' });
     }
 
-    limit = parseInt(limit, 10);
-    if (isNaN(limit) || limit < 1) limit = 50;
+    limit = Number.parseInt(limit, 10);
+    if (Number.isNaN(limit) || limit < 1) limit = 50;
     if (limit > 200) limit = 200;
 
-    page = parseInt(page, 10);
-    if (isNaN(page) || page < 1) page = 1;
+    page = Number.parseInt(page, 10);
+    if (Number.isNaN(page) || page < 1) page = 1;
 
     try {
         const data = await makeLastFmRequest('user.getRecentTracks', { user, limit, page });
