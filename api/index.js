@@ -293,6 +293,52 @@ const makeLastFmRequest = async (method, params = {}, { signed = false, httpMeth
     return response.data;
 };
 
+const validateAlbumInfoParams = (artist, album, mbid) => {
+    const hasMbid = mbid !== undefined && mbid !== '';
+    const hasArtistAlbum = artist !== undefined && album !== undefined;
+
+    if (hasMbid && !isValidUUID(mbid)) {
+        return { error: 'Invalid mbid format: must be a valid UUID string' };
+    }
+
+    if (!hasArtistAlbum && !hasMbid) {
+        if (artist !== undefined || album !== undefined) {
+            if (!ensureString(artist) || !ensureString(album)) {
+                 return { error: 'Invalid parameters: artist and album must be strings under 500 characters' };
+            }
+        }
+        return { error: 'Missing required parameters: (artist and album) or mbid' };
+    }
+
+    if (!hasMbid) {
+        if (!ensureString(artist) || !ensureString(album)) {
+            return { error: 'Invalid parameters: artist and album must be strings under 500 characters' };
+        }
+    }
+
+    return { error: null };
+};
+
+const enrichAlbumWithMusicBrainzFallback = async (data, artist, album, mbid) => {
+    const tracks = data.album?.tracks?.track;
+    const hasTracks = Array.isArray(tracks) ? tracks.length > 0 : !!tracks;
+
+    if (!hasTracks) {
+        const mbTracks = await getMusicBrainzTracklist(
+            data.album?.artist || artist,
+            data.album?.name || album,
+            data.album?.mbid || mbid
+        );
+
+        if (mbTracks.length > 0) {
+            if (!data.album.tracks) {
+                data.album.tracks = {};
+            }
+            data.album.tracks.track = mbTracks;
+        }
+    }
+};
+
 const getAlbumInfoFromTrack = (trackInfo) => {
     if (trackInfo?.album) {
         return {
@@ -601,28 +647,9 @@ app.get('/api/search-album', async (req, res) => {
 app.get('/api/get-album-info', async (req, res) => {
     const { artist, album, mbid } = req.query;
 
-    const hasMbid = mbid !== undefined && mbid !== '';
-    const hasArtistAlbum = artist !== undefined && album !== undefined;
-
-    if (hasMbid && !isValidUUID(mbid)) {
-        return res.status(400).json({ error: 'Invalid mbid format: must be a valid UUID string' });
-    }
-
-    if (!hasArtistAlbum && !hasMbid) {
-        // If neither are provided in the right format, check if they passed array/obj
-        // If they did pass *something* but it's not a string, complain about that.
-        if (artist !== undefined || album !== undefined) {
-            if (!ensureString(artist) || !ensureString(album)) {
-                 return res.status(400).json({ error: 'Invalid parameters: artist and album must be strings under 500 characters' });
-            }
-        }
-        return res.status(400).json({ error: 'Missing required parameters: (artist and album) or mbid' });
-    }
-
-    if (!hasMbid) {
-        if (!ensureString(artist) || !ensureString(album)) {
-            return res.status(400).json({ error: 'Invalid parameters: artist and album must be strings under 500 characters' });
-        }
+    const validation = validateAlbumInfoParams(artist, album, mbid);
+    if (validation.error) {
+        return res.status(400).json({ error: validation.error });
     }
 
     try {
@@ -643,26 +670,7 @@ app.get('/api/get-album-info', async (req, res) => {
 
         const data = await makeLastFmRequest('album.getInfo', params);
 
-        // Check if tracks are missing or empty
-        const tracks = data.album?.tracks?.track;
-        const hasTracks = Array.isArray(tracks) ? tracks.length > 0 : !!tracks;
-
-        if (!hasTracks) {
-            // Attempt fallback to MusicBrainz
-            const mbTracks = await getMusicBrainzTracklist(
-                data.album.artist || artist,
-                data.album.name || album,
-                data.album.mbid || mbid
-            );
-
-            if (mbTracks.length > 0) {
-                // Determine if Last.fm structure is missing 'tracks' object entirely or just empty
-                if (!data.album.tracks) {
-                    data.album.tracks = {};
-                }
-                data.album.tracks.track = mbTracks;
-            }
-        }
+        await enrichAlbumWithMusicBrainzFallback(data, artist, album, mbid);
 
         albumCache.set(cacheKey, data);
         return res.json(data);
