@@ -458,33 +458,41 @@ app.get('/api/lookup-track-albums', async (req, res) => {
         const [directAlbum, searchData] = await Promise.all([directLookupPromise, searchResponsePromise]);
         const tracks = searchData?.results?.trackmatches?.track || [];
 
-        const matchPromises = tracks.map(async (trackMatch) => {
-            const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : `track:${trackMatch.artist}|${trackMatch.name}`;
-            const cachedData = albumCache.get(cacheKey);
-            if (cachedData !== undefined) {
-                return cachedData;
-            }
-            try {
-                const params = {};
-                if (trackMatch.mbid) {
-                    params.mbid = trackMatch.mbid;
-                } else {
-                    params.artist = trackMatch.artist;
-                    params.track = trackMatch.name;
+        const matchAlbums = [];
+        const chunkSize = 2; // Concurrency limit to avoid Last.fm rate limits (5 req/sec)
+
+        for (let i = 0; i < tracks.length; i += chunkSize) {
+            const chunk = tracks.slice(i, i + chunkSize);
+            const chunkPromises = chunk.map(async (trackMatch) => {
+                const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : `track:${trackMatch.artist}|${trackMatch.name}`;
+                const cachedData = albumCache.get(cacheKey);
+                if (cachedData !== undefined) {
+                    return cachedData;
                 }
+                try {
+                    const params = {};
+                    if (trackMatch.mbid) {
+                        params.mbid = trackMatch.mbid;
+                    } else {
+                        params.artist = trackMatch.artist;
+                        params.track = trackMatch.name;
+                    }
 
-                const data = await makeLastFmRequest('track.getInfo', params);
-                const albumInfo = getAlbumInfoFromTrack(data.track);
-                albumCache.set(cacheKey, albumInfo);
-                return albumInfo;
-            } catch (e) {
-                console.warn('Match lookup failed:', e.message);
-                albumCache.set(cacheKey, null);
-                return null;
-            }
-        });
+                    const data = await makeLastFmRequest('track.getInfo', params);
+                    const albumInfo = getAlbumInfoFromTrack(data.track);
+                    albumCache.set(cacheKey, albumInfo);
+                    return albumInfo;
+                } catch (e) {
+                    console.warn('Match lookup failed:', e.message);
+                    albumCache.set(cacheKey, null);
+                    return null;
+                }
+            });
 
-        const matchAlbums = await Promise.all(matchPromises);
+            const chunkResults = await Promise.all(chunkPromises);
+            matchAlbums.push(...chunkResults);
+        }
+
         const allAlbums = [directAlbum, ...matchAlbums].filter(Boolean);
 
         const uniqueAlbums = [];
