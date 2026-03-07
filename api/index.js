@@ -437,12 +437,20 @@ app.get('/api/lookup-track-albums', async (req, res) => {
         const allAlbums = [directAlbum, ...matchAlbums].filter(Boolean);
 
         const uniqueAlbums = [];
-        const seen = new Set();
+        const seen = new Map();
 
         for (const album of allAlbums) {
-            const key = `${album.name.toLowerCase()}:${album.artist.toLowerCase()}`;
-            if (!seen.has(key)) {
-                seen.add(key);
+            const nameLower = album.name.toLowerCase();
+            let artistSet = seen.get(nameLower);
+
+            if (!artistSet) {
+                artistSet = new Set();
+                seen.set(nameLower, artistSet);
+            }
+
+            const artistLower = album.artist.toLowerCase();
+            if (!artistSet.has(artistLower)) {
+                artistSet.add(artistLower);
                 uniqueAlbums.push(album);
             }
         }
