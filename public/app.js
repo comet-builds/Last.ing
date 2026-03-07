@@ -1172,11 +1172,7 @@ async function loadHistory(append = false) {
     }
 }
 
-function renderHistory(tracks) {
-    historyList.innerHTML = '';
-    const showNoAlbum = filterNoAlbum.classList.contains('active');
-    const showDuplicates = filterDuplicates.classList.contains('active');
-
+function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
     let filteredTracks = tracks.filter(track => track['@attr']?.nowplaying !== 'true');
 
     if (showNoAlbum) {
@@ -1201,6 +1197,127 @@ function renderHistory(tracks) {
         filteredTracks = filteredTracks.filter(track => duplicates.has(track));
     }
 
+    return filteredTracks;
+}
+
+function createHistoryItem(track, dateObj) {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+
+    const isNoAlbum = !track.album?.['#text'];
+
+    const imageUrls = getSortedImageUrls(track.image);
+
+    const coverImg = document.createElement('img');
+    coverImg.className = 'history-cover';
+    coverImg.alt = track.album?.['#text'] || 'Album Cover';
+    const coverEl = setImageWithFallback(coverImg, imageUrls);
+    item.appendChild(coverEl);
+
+    const info = document.createElement('div');
+    info.className = 'history-info';
+
+    const title = document.createElement('a');
+    title.className = 'history-track';
+    title.textContent = track.name;
+    title.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}/_/${encodeLastFmParam(track.name)}`;
+    title.target = '_blank';
+
+    const artist = document.createElement('a');
+    artist.className = 'history-artist';
+    artist.textContent = track.artist['#text'];
+    artist.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}`;
+    artist.target = '_blank';
+
+    info.appendChild(title);
+    info.appendChild(artist);
+
+    if (!isNoAlbum) {
+        const meta = document.createElement('div');
+        meta.className = 'history-meta';
+
+        const albumLink = document.createElement('a');
+        albumLink.className = 'history-album-link';
+        albumLink.textContent = track.album['#text'];
+        albumLink.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}/${encodeLastFmParam(track.album['#text'])}`;
+        albumLink.target = '_blank';
+        meta.appendChild(albumLink);
+
+        info.appendChild(meta);
+    }
+
+    const rightDiv = document.createElement('div');
+    rightDiv.className = 'history-right';
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'history-time';
+    timeSpan.textContent = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.className = 'history-buttons';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-scrobble-btn';
+    editBtn.innerHTML = EDIT_ICON_SVG;
+    editBtn.title = 'Edit Scrobble';
+    editBtn.addEventListener('click', () => {
+        modeTrackBtn.click();
+        artistInput.value = track.artist['#text'];
+        trackInput.value = track.name;
+        if (track.album?.['#text']) {
+            albumInput.value = track.album['#text'];
+        } else {
+            albumInput.value = '';
+        }
+
+        if (track.albumArtist?.['#text']) {
+             albumArtistInput.value = track.albumArtist['#text'];
+        } else {
+             albumArtistInput.value = '';
+        }
+
+        if (track.date?.uts) {
+            const dateObj = new Date(track.date.uts * 1000);
+            updateDateTimeInputs(dateObj, dateInput, timeInput);
+        }
+
+        if (pinArtistBtn.classList.contains('active')) pinArtistBtn.click();
+        if (pinTrackBtn.classList.contains('active')) pinTrackBtn.click();
+        if (pinAlbumBtn.classList.contains('active')) pinAlbumBtn.click();
+        if (pinAlbumArtistBtn.classList.contains('active')) pinAlbumArtistBtn.click();
+
+        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-scrobble-btn';
+    deleteBtn.innerHTML = DELETE_ICON_SVG;
+    deleteBtn.title = 'Delete Scrobble';
+    deleteBtn.dataset.artist = track.artist['#text'];
+    deleteBtn.dataset.track = track.name;
+    if (track.date?.uts) {
+        deleteBtn.dataset.timestamp = track.date.uts;
+    }
+
+    buttonsDiv.appendChild(editBtn);
+    buttonsDiv.appendChild(deleteBtn);
+
+    rightDiv.appendChild(timeSpan);
+    rightDiv.appendChild(buttonsDiv);
+
+    item.appendChild(info);
+    item.appendChild(rightDiv);
+
+    return item;
+}
+
+function renderHistory(tracks) {
+    historyList.innerHTML = '';
+    const showNoAlbum = filterNoAlbum.classList.contains('active');
+    const showDuplicates = filterDuplicates.classList.contains('active');
+
+    const filteredTracks = filterHistoryTracks(tracks, showNoAlbum, showDuplicates);
+
     if (filteredTracks.length === 0) {
         historyList.innerHTML = '<p class="no-tracks-message">No tracks found matching criteria.</p>';
         return;
@@ -1224,112 +1341,7 @@ function renderHistory(tracks) {
             lastDateStr = dateStr;
         }
 
-        const item = document.createElement('div');
-        item.className = 'history-item';
-
-        const isNoAlbum = !track.album?.['#text'];
-
-        const imageUrls = getSortedImageUrls(track.image);
-
-        const coverImg = document.createElement('img');
-        coverImg.className = 'history-cover';
-        coverImg.alt = track.album?.['#text'] || 'Album Cover';
-        const coverEl = setImageWithFallback(coverImg, imageUrls);
-        item.appendChild(coverEl);
-
-        const info = document.createElement('div');
-        info.className = 'history-info';
-
-        const title = document.createElement('a');
-        title.className = 'history-track';
-        title.textContent = track.name;
-        title.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}/_/${encodeLastFmParam(track.name)}`;
-        title.target = '_blank';
-
-        const artist = document.createElement('a');
-        artist.className = 'history-artist';
-        artist.textContent = track.artist['#text'];
-        artist.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}`;
-        artist.target = '_blank';
-
-        info.appendChild(title);
-        info.appendChild(artist);
-
-        if (!isNoAlbum) {
-            const meta = document.createElement('div');
-            meta.className = 'history-meta';
-
-            const albumLink = document.createElement('a');
-            albumLink.className = 'history-album-link';
-            albumLink.textContent = track.album['#text'];
-            albumLink.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}/${encodeLastFmParam(track.album['#text'])}`;
-            albumLink.target = '_blank';
-            meta.appendChild(albumLink);
-
-            info.appendChild(meta);
-        }
-
-        const rightDiv = document.createElement('div');
-        rightDiv.className = 'history-right';
-
-        const timeSpan = document.createElement('span');
-        timeSpan.className = 'history-time';
-        timeSpan.textContent = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-        const buttonsDiv = document.createElement('div');
-        buttonsDiv.className = 'history-buttons';
-
-        const editBtn = document.createElement('button');
-        editBtn.className = 'edit-scrobble-btn';
-        editBtn.innerHTML = EDIT_ICON_SVG;
-        editBtn.title = 'Edit Scrobble';
-        editBtn.addEventListener('click', () => {
-            modeTrackBtn.click();
-            artistInput.value = track.artist['#text'];
-            trackInput.value = track.name;
-            if (track.album?.['#text']) {
-                albumInput.value = track.album['#text'];
-            } else {
-                albumInput.value = '';
-            }
-
-            if (track.albumArtist?.['#text']) {
-                 albumArtistInput.value = track.albumArtist['#text'];
-            } else {
-                 albumArtistInput.value = '';
-            }
-
-            if (track.date?.uts) {
-                const dateObj = new Date(track.date.uts * 1000);
-                updateDateTimeInputs(dateObj, dateInput, timeInput);
-            }
-
-            if (pinArtistBtn.classList.contains('active')) pinArtistBtn.click();
-            if (pinTrackBtn.classList.contains('active')) pinTrackBtn.click();
-            if (pinAlbumBtn.classList.contains('active')) pinAlbumBtn.click();
-            if (pinAlbumArtistBtn.classList.contains('active')) pinAlbumArtistBtn.click();
-
-            globalThis.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-scrobble-btn';
-        deleteBtn.innerHTML = DELETE_ICON_SVG;
-        deleteBtn.title = 'Delete Scrobble';
-        deleteBtn.dataset.artist = track.artist['#text'];
-        deleteBtn.dataset.track = track.name;
-        if (track.date?.uts) {
-            deleteBtn.dataset.timestamp = track.date.uts;
-        }
-
-        buttonsDiv.appendChild(editBtn);
-        buttonsDiv.appendChild(deleteBtn);
-
-        rightDiv.appendChild(timeSpan);
-        rightDiv.appendChild(buttonsDiv);
-
-        item.appendChild(info);
-        item.appendChild(rightDiv);
+        const item = createHistoryItem(track, dateObj);
         fragment.appendChild(item);
     });
 
