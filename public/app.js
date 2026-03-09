@@ -1180,7 +1180,8 @@ function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
     }
 
     if (showDuplicates) {
-        const duplicates = new Set();
+        const duplicates = [];
+        let inDupSequence = false;
         // 5 minute window for duplicates
         for (let i = 0; i < filteredTracks.length - 1; i++) {
             const current = filteredTracks[i];
@@ -1189,12 +1190,17 @@ function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
             if (current.name === next.name && current.artist['#text'] === next.artist['#text']) {
                  const timeDiff = Math.abs(Number.parseInt(current.date.uts) - Number.parseInt(next.date.uts));
                  if (timeDiff < DUPLICATE_WINDOW_SECONDS) {
-                     duplicates.add(current);
-                     duplicates.add(next);
+                     if (!inDupSequence) {
+                         duplicates.push(current);
+                     }
+                     duplicates.push(next);
+                     inDupSequence = true;
+                     continue;
                  }
             }
+            inDupSequence = false;
         }
-        filteredTracks = filteredTracks.filter(track => duplicates.has(track));
+        filteredTracks = duplicates;
     }
 
     return filteredTracks;
