@@ -1172,6 +1172,30 @@ async function loadHistory(append = false) {
     }
 }
 
+function getDuplicateHistoryTracks(tracks) {
+    const duplicates = [];
+    let inDupSequence = false;
+    // 5 minute window for duplicates
+    for (let i = 0; i < tracks.length - 1; i++) {
+        const current = tracks[i];
+        const next = tracks[i+1];
+
+        if (current.name === next.name && current.artist['#text'] === next.artist['#text']) {
+             const timeDiff = Math.abs(Number.parseInt(current.date.uts) - Number.parseInt(next.date.uts));
+             if (timeDiff < DUPLICATE_WINDOW_SECONDS) {
+                 if (!inDupSequence) {
+                     duplicates.push(current);
+                 }
+                 duplicates.push(next);
+                 inDupSequence = true;
+                 continue;
+             }
+        }
+        inDupSequence = false;
+    }
+    return duplicates;
+}
+
 function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
     let filteredTracks = tracks.filter(track => track['@attr']?.nowplaying !== 'true');
 
@@ -1180,27 +1204,7 @@ function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
     }
 
     if (showDuplicates) {
-        const duplicates = [];
-        let inDupSequence = false;
-        // 5 minute window for duplicates
-        for (let i = 0; i < filteredTracks.length - 1; i++) {
-            const current = filteredTracks[i];
-            const next = filteredTracks[i+1];
-
-            if (current.name === next.name && current.artist['#text'] === next.artist['#text']) {
-                 const timeDiff = Math.abs(Number.parseInt(current.date.uts) - Number.parseInt(next.date.uts));
-                 if (timeDiff < DUPLICATE_WINDOW_SECONDS) {
-                     if (!inDupSequence) {
-                         duplicates.push(current);
-                     }
-                     duplicates.push(next);
-                     inDupSequence = true;
-                     continue;
-                 }
-            }
-            inDupSequence = false;
-        }
-        filteredTracks = duplicates;
+        filteredTracks = getDuplicateHistoryTracks(filteredTracks);
     }
 
     return filteredTracks;
