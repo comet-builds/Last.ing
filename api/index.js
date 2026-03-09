@@ -90,6 +90,10 @@ const isValidUUID = (val) => {
     return uuidRegex.test(val);
 };
 
+const escapeLucene = (str) => {
+    return str.replace(/([+\-!(){}\[\]^"~*?:\/\\&|])/g, '\\$1');
+};
+
 const searchMusicBrainzRelease = async (artist, album) => {
     const cacheKey = `${artist}|${album}`;
     const cachedData = mbMbidCache.get(cacheKey);
@@ -98,7 +102,10 @@ const searchMusicBrainzRelease = async (artist, album) => {
         return cachedData;
     }
 
-    const query = `release:${album} AND artist:${artist}`;
+    const escapedAlbum = escapeLucene(album);
+    const escapedArtist = escapeLucene(artist);
+
+    const query = `release:${escapedAlbum} AND artist:${escapedArtist}`;
     const searchUrl = `${MUSICBRAINZ_API_ROOT}release/`;
 
     const searchResponse = await apiClient.get(searchUrl, {
