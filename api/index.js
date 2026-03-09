@@ -207,17 +207,16 @@ const getMusicBrainzTracklist = async (artist, album, mbid) => {
 };
 
 const signParams = (params) => {
-    const sortedKeys = Object.keys(params).sort();
-    let signatureString = '';
+    const signatureString = Object.keys(params)
+        .sort()
+        .reduce((acc, key) => {
+            if (key !== 'format' && key !== 'callback') {
+                return acc + key + params[key];
+            }
+            return acc;
+        }, '');
 
-    sortedKeys.forEach(key => {
-        if (key !== 'format' && key !== 'callback') {
-             signatureString += key + params[key];
-        }
-    });
-
-    signatureString += SHARED_SECRET;
-    return crypto.createHash('md5').update(signatureString).digest('hex');
+    return crypto.createHash('md5').update(signatureString + SHARED_SECRET).digest('hex');
 };
 
 const sanitizeError = (error) => {
