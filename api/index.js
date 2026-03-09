@@ -91,7 +91,7 @@ const isValidUUID = (val) => {
 };
 
 const escapeLucene = (str) => {
-    return str.replace(/([+\-!(){}\[\]^"~*?:\/\\&|])/g, '\\$1');
+    return str.replaceAll(/([+\-!(){}[\]^"~*?:/\\&|])/g, String.raw`\$1`);
 };
 
 const searchMusicBrainzRelease = async (artist, album) => {
@@ -208,7 +208,7 @@ const getMusicBrainzTracklist = async (artist, album, mbid) => {
 
 const signParams = (params) => {
     const signatureString = Object.keys(params)
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .reduce((acc, key) => {
             if (key !== 'format' && key !== 'callback') {
                 return acc + key + params[key];
