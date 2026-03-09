@@ -95,7 +95,7 @@ const escapeLucene = (str) => {
 };
 
 const searchMusicBrainzRelease = async (artist, album) => {
-    const cacheKey = `${artist}|${album}`;
+    const cacheKey = JSON.stringify([artist, album]);
     const cachedData = mbMbidCache.get(cacheKey);
 
     if (cachedData !== undefined) {
@@ -394,7 +394,7 @@ const formatBatchScrobbleParams = (tracks, sessionKey) => {
 
 const lookupTrackAlbums = async (artist, track) => {
     const directLookupPromise = (async () => {
-        const cacheKey = `track:${artist}|${track}`;
+        const cacheKey = JSON.stringify(['track', artist, track]);
         const cachedData = albumCache.get(cacheKey);
         if (cachedData !== undefined) {
             return cachedData;
@@ -422,7 +422,7 @@ const lookupTrackAlbums = async (artist, track) => {
     for (let i = 0; i < tracks.length; i += chunkSize) {
         const chunk = tracks.slice(i, i + chunkSize);
         const chunkPromises = chunk.map(async (trackMatch) => {
-            const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : `track:${trackMatch.artist}|${trackMatch.name}`;
+            const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : JSON.stringify(['track', trackMatch.artist, trackMatch.name]);
             const cachedData = albumCache.get(cacheKey);
             if (cachedData !== undefined) {
                 return cachedData;
@@ -652,7 +652,7 @@ app.get('/api/get-album-info', async (req, res) => {
     }
 
     try {
-        const cacheKey = mbid ? `mbid:${mbid}` : `album:${artist}|${album}`;
+        const cacheKey = mbid ? `mbid:${mbid}` : JSON.stringify(['album', artist, album]);
         const cachedData = albumCache.get(cacheKey);
 
         if (cachedData) {
