@@ -1222,12 +1222,14 @@ function createHistoryItem(track, dateObj) {
     title.textContent = track.name;
     title.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}/_/${encodeLastFmParam(track.name)}`;
     title.target = '_blank';
+    title.rel = 'noopener noreferrer';
 
     const artist = document.createElement('a');
     artist.className = 'history-artist';
     artist.textContent = track.artist['#text'];
     artist.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}`;
     artist.target = '_blank';
+    artist.rel = 'noopener noreferrer';
 
     info.appendChild(title);
     info.appendChild(artist);
@@ -1241,6 +1243,7 @@ function createHistoryItem(track, dateObj) {
         albumLink.textContent = track.album['#text'];
         albumLink.href = `https://www.last.fm/music/${encodeLastFmParam(track.artist['#text'])}/${encodeLastFmParam(track.album['#text'])}`;
         albumLink.target = '_blank';
+        albumLink.rel = 'noopener noreferrer';
         meta.appendChild(albumLink);
 
         info.appendChild(meta);
