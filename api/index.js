@@ -290,29 +290,20 @@ const makeLastFmRequest = async (method, params = {}, { signed = false, httpMeth
 };
 
 const validateAlbumInfoParams = (artist, album, mbid) => {
-    const hasMbid = mbid !== undefined && mbid !== '';
-    const hasArtistAlbum = artist !== undefined && album !== undefined;
-
-    if (hasMbid && !isValidUUID(mbid)) {
-        return { error: 'Invalid mbid format: must be a valid UUID string' };
+    if (mbid !== undefined && mbid !== '') {
+        return isValidUUID(mbid)
+            ? { error: null }
+            : { error: 'Invalid mbid format: must be a valid UUID string' };
     }
 
-    if (!hasArtistAlbum && !hasMbid) {
-        if (artist !== undefined || album !== undefined) {
-            if (!ensureString(artist) || !ensureString(album)) {
-                 return { error: 'Invalid parameters: artist and album must be strings under 500 characters' };
-            }
-        }
-        return { error: 'Missing required parameters: (artist and album) or mbid' };
-    }
-
-    if (!hasMbid) {
+    if (artist !== undefined || album !== undefined) {
         if (!ensureString(artist) || !ensureString(album)) {
             return { error: 'Invalid parameters: artist and album must be strings under 500 characters' };
         }
+        return { error: null };
     }
 
-    return { error: null };
+    return { error: 'Missing required parameters: (artist and album) or mbid' };
 };
 
 const enrichAlbumWithMusicBrainzFallback = async (data, artist, album, mbid) => {
