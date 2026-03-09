@@ -84,10 +84,10 @@ const ensureString = (val, maxLength = 500) => {
     return true;
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const isValidUUID = (val) => {
-    if (typeof val !== 'string') return false;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(val);
+    return typeof val === 'string' && UUID_REGEX.test(val);
 };
 
 const searchMusicBrainzRelease = async (artist, album) => {
