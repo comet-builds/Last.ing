@@ -1065,8 +1065,8 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
     toggleSpinner(true);
 
     const batches = [];
-    while (tracksToScrobble.length > 0) {
-        batches.push(tracksToScrobble.splice(0, 50));
+    for (let i = 0; i < tracksToScrobble.length; i += 50) {
+        batches.push(tracksToScrobble.slice(i, i + 50));
     }
 
     try {
