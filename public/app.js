@@ -546,6 +546,7 @@ if (findAlbumBtn) {
 
 function renderTrackAlbumResults(albums) {
     trackAlbumResults.innerHTML = '';
+    const fragment = document.createDocumentFragment();
 
     albums.forEach(album => {
         const imageUrls = getSortedImageUrls(album.image);
@@ -589,8 +590,10 @@ function renderTrackAlbumResults(albums) {
             trackAlbumResults.innerHTML = '';
         });
 
-        trackAlbumResults.appendChild(card);
+        fragment.appendChild(card);
     });
+
+    trackAlbumResults.appendChild(fragment);
 }
 
 // --- Album Search Logic ---
