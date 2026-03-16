@@ -1073,17 +1073,25 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
     }
 
     try {
-        for (const batch of batches) {
-             const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble-batch`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tracks: batch })
+        const concurrencyLimit = 5;
+        for (let i = 0; i < batches.length; i += concurrencyLimit) {
+            const chunk = batches.slice(i, i + concurrencyLimit);
+
+            const chunkPromises = chunk.map(async (batch) => {
+                const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble-batch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tracks: batch })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.message || 'Batch scrobble failed');
+                }
+                return data;
             });
 
-            const data = await response.json();
-            if (data.error) {
-                throw new Error(data.message || 'Batch scrobble failed');
-            }
+            await Promise.all(chunkPromises);
         }
 
         showStatus('Scrobbled', 'success');
