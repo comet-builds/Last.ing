@@ -511,8 +511,8 @@ app.get('/api/login-url', (req, res) => {
 app.post('/api/auth', async (req, res) => {
     const { token } = req.body;
 
-    if (!token) {
-        return res.status(400).json({ error: 'Token is required' });
+    if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: 'Token is required and must be a string' });
     }
 
     try {
