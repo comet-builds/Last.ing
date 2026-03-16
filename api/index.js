@@ -25,7 +25,8 @@ app.use(limiter);
 app.use(helmet());
 app.use(compression());
 app.use(express.json());
-app.use(cookieParser());
+const COOKIE_SECRET = process.env.COOKIE_SECRET || process.env.LASTFM_SHARED_SECRET;
+app.use(cookieParser(COOKIE_SECRET));
 
 app.use((req, res, next) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -511,6 +512,7 @@ app.post('/api/auth', async (req, res) => {
             httpOnly: true,
             secure: true,
             sameSite: 'Strict',
+            signed: true,
 			maxAge: 90 * 24 * 60 * 60 * 1000
         });
 
@@ -533,7 +535,7 @@ app.post('/api/auth', async (req, res) => {
 });
 
 app.get('/api/check-auth', async (req, res) => {
-    const sessionKey = req.cookies.lastfm_session_key;
+    const sessionKey = req.signedCookies.lastfm_session_key;
 
     if (!sessionKey) {
         return res.json({ authenticated: false });
@@ -554,20 +556,20 @@ app.get('/api/check-auth', async (req, res) => {
     } catch (error) {
         const errData = sanitizeError(error);
         if (errData.responseData && (errData.responseData.error === 4 || errData.responseData.error === 9 || errData.responseData.error === 14)) {
-            res.clearCookie('lastfm_session_key');
+            res.clearCookie('lastfm_session_key', { httpOnly: true, secure: true, sameSite: 'Strict', signed: true });
         }
         res.json({ authenticated: false });
     }
 });
 
 app.post('/api/logout', (req, res) => {
-    res.clearCookie('lastfm_session_key');
+    res.clearCookie('lastfm_session_key', { httpOnly: true, secure: true, sameSite: 'Strict', signed: true });
     res.json({ message: 'Logged out' });
 });
 
 app.post('/api/scrobble', async (req, res) => {
     const { artist, track, album, albumArtist, timestamp } = req.body;
-    const sessionKey = req.cookies.lastfm_session_key;
+    const sessionKey = req.signedCookies.lastfm_session_key;
 
     if (!sessionKey) {
         return res.status(401).json({ error: 'Unauthorized: No session key found' });
@@ -680,7 +682,7 @@ app.get('/api/get-album-info', async (req, res) => {
 
 app.post('/api/scrobble-batch', async (req, res) => {
     const { tracks } = req.body;
-    const sessionKey = req.cookies.lastfm_session_key;
+    const sessionKey = req.signedCookies.lastfm_session_key;
 
     if (!sessionKey) {
         return res.status(401).json({ error: 'Unauthorized: No session key found' });
