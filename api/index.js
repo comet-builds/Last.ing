@@ -402,28 +402,26 @@ const formatBatchScrobbleParams = (tracks, sessionKey) => {
 };
 
 
-const lookupTrackAlbums = async (artist, track) => {
-    const directLookupPromise = (async () => {
-        const cacheKey = JSON.stringify(['track', artist, track]);
-        const cachedData = albumCache.get(cacheKey);
-        if (cachedData !== undefined) {
-            return cachedData;
-        }
-        try {
-            const data = await makeLastFmRequest('track.getInfo', { artist, track });
-            const albumInfo = getAlbumInfoFromTrack(data.track);
-            albumCache.set(cacheKey, albumInfo);
-            return albumInfo;
-        } catch (e) {
-            console.warn('Direct lookup failed:', e.message);
-            albumCache.set(cacheKey, null);
-            return null;
-        }
-    })();
+const getDirectTrackAlbum = async (artist, track) => {
+    const cacheKey = JSON.stringify(['track', artist, track]);
+    const cachedData = albumCache.get(cacheKey);
+    if (cachedData !== undefined) {
+        return cachedData;
+    }
+    try {
+        const data = await makeLastFmRequest('track.getInfo', { artist, track });
+        const albumInfo = getAlbumInfoFromTrack(data.track);
+        albumCache.set(cacheKey, albumInfo);
+        return albumInfo;
+    } catch (e) {
+        console.warn('Direct lookup failed:', e.message);
+        albumCache.set(cacheKey, null);
+        return null;
+    }
+};
 
-    const searchResponsePromise = makeLastFmRequest('track.search', { track, artist, limit: 5 });
-
-    const [directAlbum, searchData] = await Promise.all([directLookupPromise, searchResponsePromise]);
+const getSearchTrackAlbums = async (artist, track) => {
+    const searchData = await makeLastFmRequest('track.search', { track, artist, limit: 5 });
     const tracks = searchData?.results?.trackmatches?.track || [];
 
     const matchAlbums = [];
@@ -461,15 +459,17 @@ const lookupTrackAlbums = async (artist, track) => {
         matchAlbums.push(...chunkResults);
     }
 
-    const allAlbums = [directAlbum, ...matchAlbums].filter(Boolean);
+    return matchAlbums;
+};
 
+const deduplicateAlbums = (albums) => {
     const uniqueAlbums = [];
     const seen = new Map();
 
     const nameCache = new Map();
     const artistCache = new Map();
 
-    for (const album of allAlbums) {
+    for (const album of albums) {
         let nameLower = nameCache.get(album.name);
         if (nameLower === undefined) {
             nameLower = album.name.toLowerCase();
@@ -495,6 +495,17 @@ const lookupTrackAlbums = async (artist, track) => {
     }
 
     return uniqueAlbums;
+};
+
+const lookupTrackAlbums = async (artist, track) => {
+    const directLookupPromise = getDirectTrackAlbum(artist, track);
+    const searchAlbumsPromise = getSearchTrackAlbums(artist, track);
+
+    const [directAlbum, searchAlbums] = await Promise.all([directLookupPromise, searchAlbumsPromise]);
+
+    const allAlbums = [directAlbum, ...searchAlbums].filter(Boolean);
+
+    return deduplicateAlbums(allAlbums);
 };
 
 // --- Routes ---
