@@ -10,7 +10,15 @@ require('dotenv').config();
 
 const app = express();
 
-app.set('trust proxy', 1);
+const getTrustedProxies = () => {
+    const envProxies = process.env.TRUSTED_PROXIES;
+    if (envProxies) {
+        return envProxies.split(',').map(p => p.trim());
+    }
+    return 'loopback';
+};
+
+app.set('trust proxy', getTrustedProxies());
 
 const limiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
