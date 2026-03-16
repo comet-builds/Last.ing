@@ -1172,42 +1172,39 @@ async function loadHistory(append = false) {
     }
 }
 
-function getDuplicateHistoryTracks(tracks) {
-    const duplicates = [];
-    let inDupSequence = false;
-    // 5 minute window for duplicates
-    for (let i = 0; i < tracks.length - 1; i++) {
-        const current = tracks[i];
-        const next = tracks[i+1];
-
-        if (current.name === next.name && current.artist['#text'] === next.artist['#text']) {
-             const timeDiff = Math.abs(Number.parseInt(current.date.uts) - Number.parseInt(next.date.uts));
-             if (timeDiff < DUPLICATE_WINDOW_SECONDS) {
-                 if (!inDupSequence) {
-                     duplicates.push(current);
-                 }
-                 duplicates.push(next);
-                 inDupSequence = true;
-                 continue;
-             }
-        }
-        inDupSequence = false;
-    }
-    return duplicates;
-}
 
 function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
-    let filteredTracks = tracks.filter(track => track['@attr']?.nowplaying !== 'true');
+    const result = [];
+    let prevTrack = null;
+    let inDupSequence = false;
 
-    if (showNoAlbum) {
-        filteredTracks = filteredTracks.filter(track => !track.album?.['#text']);
+    for (const track of tracks) {
+        if (track['@attr']?.nowplaying === 'true') continue;
+        if (showNoAlbum && track.album?.['#text']) continue;
+
+        if (!showDuplicates) {
+            result.push(track);
+            continue;
+        }
+
+        if (prevTrack) {
+            if (track.name === prevTrack.name && track.artist['#text'] === prevTrack.artist['#text']) {
+                 const timeDiff = Math.abs(Number.parseInt(track.date.uts) - Number.parseInt(prevTrack.date.uts));
+                 if (timeDiff < DUPLICATE_WINDOW_SECONDS) {
+                     if (!inDupSequence) {
+                         result.push(prevTrack);
+                     }
+                     result.push(track);
+                     inDupSequence = true;
+                     prevTrack = track;
+                     continue;
+                 }
+            }
+        }
+        inDupSequence = false;
+        prevTrack = track;
     }
-
-    if (showDuplicates) {
-        filteredTracks = getDuplicateHistoryTracks(filteredTracks);
-    }
-
-    return filteredTracks;
+    return result;
 }
 
 function createHistoryItem(track, dateObj) {
