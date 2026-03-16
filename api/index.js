@@ -9,7 +9,6 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://last-ing.vercel.app';
 
 app.set('trust proxy', 1);
 
@@ -496,7 +495,8 @@ app.get('/api/login-url', (req, res) => {
     if (!API_KEY) {
         return res.status(500).json({ error: 'Server misconfiguration: Missing API Key' });
     }
-    const authUrl = `https://www.last.fm/api/auth/?api_key=${API_KEY}&cb=${encodeURIComponent(FRONTEND_URL)}`;
+    const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    const authUrl = `https://www.last.fm/api/auth/?api_key=${API_KEY}&cb=${encodeURIComponent(frontendUrl)}`;
     res.json({ url: authUrl });
 });
 
