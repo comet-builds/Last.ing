@@ -1184,6 +1184,15 @@ async function loadHistory(append = false) {
 }
 
 
+function isDuplicateTrack(track, prevTrack) {
+    if (!prevTrack) return false;
+    if (track.name !== prevTrack.name || track.artist['#text'] !== prevTrack.artist['#text']) {
+        return false;
+    }
+    const timeDiff = Math.abs(Number.parseInt(track.date.uts) - Number.parseInt(prevTrack.date.uts));
+    return timeDiff < DUPLICATE_WINDOW_SECONDS;
+}
+
 function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
     const result = [];
     let prevTrack = null;
@@ -1198,20 +1207,16 @@ function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
             continue;
         }
 
-        if (prevTrack) {
-            if (track.name === prevTrack.name && track.artist['#text'] === prevTrack.artist['#text']) {
-                 const timeDiff = Math.abs(Number.parseInt(track.date.uts) - Number.parseInt(prevTrack.date.uts));
-                 if (timeDiff < DUPLICATE_WINDOW_SECONDS) {
-                     if (!inDupSequence) {
-                         result.push(prevTrack);
-                     }
-                     result.push(track);
-                     inDupSequence = true;
-                     prevTrack = track;
-                     continue;
-                 }
+        if (isDuplicateTrack(track, prevTrack)) {
+            if (!inDupSequence) {
+                result.push(prevTrack);
             }
+            result.push(track);
+            inDupSequence = true;
+            prevTrack = track;
+            continue;
         }
+
         inDupSequence = false;
         prevTrack = track;
     }
