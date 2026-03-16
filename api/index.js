@@ -39,6 +39,8 @@ const SHARED_SECRET = process.env.LASTFM_SHARED_SECRET;
 const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 const MUSICBRAINZ_API_ROOT = 'https://musicbrainz.org/ws/2/';
 const MUSICBRAINZ_USER_AGENT = 'Last.ing/1.0 ( https://github.com/comet-builds/Last.ing )';
+const CACHE_SIZE_LIMIT = 500;
+const MAX_STRING_LENGTH = 500;
 
 const agent = new https.Agent({ keepAlive: true });
 const apiClient = axios.create({
@@ -48,7 +50,7 @@ const apiClient = axios.create({
 
 // Simple LRU Cache for Album Info
 class SimpleLRUCache {
-    constructor(limit = 500) {
+    constructor(limit = CACHE_SIZE_LIMIT) {
         this.limit = limit;
         this.cache = new Map();
     }
@@ -72,13 +74,13 @@ class SimpleLRUCache {
     }
 }
 
-const albumCache = new SimpleLRUCache(500);
-const mbMbidCache = new SimpleLRUCache(500);
-const mbTracklistCache = new SimpleLRUCache(500);
+const albumCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
+const mbMbidCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
+const mbTracklistCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 
 // --- Helper Functions ---
 
-const ensureString = (val, maxLength = 500) => {
+const ensureString = (val, maxLength = MAX_STRING_LENGTH) => {
     if (typeof val !== 'string') return false;
     if (val.length > maxLength) return false;
     return true;
@@ -298,7 +300,7 @@ const validateAlbumInfoParams = (artist, album, mbid) => {
 
     if (artist !== undefined || album !== undefined) {
         if (!ensureString(artist) || !ensureString(album)) {
-            return { error: 'Invalid parameters: artist and album must be strings under 500 characters' };
+            return { error: `Invalid parameters: artist and album must be strings under ${MAX_STRING_LENGTH} characters` };
         }
         return { error: null };
     }
@@ -361,7 +363,7 @@ const validateBatchScrobbleTracks = (tracks) => {
         }
 
         if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
-            return { isValid: false, error: `Invalid data types at index ${i}: artist, track, album, and albumArtist must be strings under 500 characters` };
+            return { isValid: false, error: `Invalid data types at index ${i}: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
         }
 
         if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
@@ -578,7 +580,7 @@ app.post('/api/scrobble', async (req, res) => {
     }
 
     if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
-        return res.status(400).json({ error: 'Invalid data types: artist, track, album, and albumArtist must be strings under 500 characters' });
+        return res.status(400).json({ error: `Invalid data types: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` });
     }
 
     if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
@@ -608,7 +610,7 @@ app.get('/api/lookup-track-albums', async (req, res) => {
     const { artist, track } = req.query;
 
     if (!ensureString(artist) || !ensureString(track)) {
-        return res.status(400).json({ error: 'Invalid parameters: artist and track must be strings under 500 characters' });
+        return res.status(400).json({ error: `Invalid parameters: artist and track must be strings under ${MAX_STRING_LENGTH} characters` });
     }
 
     if (artist === undefined || track === undefined || artist === '' || track === '') {
@@ -628,7 +630,7 @@ app.get('/api/search-album', async (req, res) => {
     const { query } = req.query;
 
     if (!ensureString(query)) {
-        return res.status(400).json({ error: 'Invalid query parameter: must be a string under 500 characters' });
+        return res.status(400).json({ error: `Invalid query parameter: must be a string under ${MAX_STRING_LENGTH} characters` });
     }
 
     if (query === undefined || query === '') {
@@ -704,7 +706,7 @@ app.get('/api/get-recent-tracks', async (req, res) => {
     let { user, limit = 50, page = 1 } = req.query;
 
     if (!ensureString(user)) {
-        return res.status(400).json({ error: 'Invalid parameter: user must be a string under 500 characters' });
+        return res.status(400).json({ error: `Invalid parameter: user must be a string under ${MAX_STRING_LENGTH} characters` });
     }
 
     if (user === undefined || user === '') {
