@@ -218,7 +218,11 @@ const getMusicBrainzTracklist = async (artist, album, mbid) => {
 
 const signParams = (params) => {
     const signatureString = Object.keys(params)
-        .sort((a, b) => a.localeCompare(b))
+        .sort((a, b) => {
+            if (a < b) return -1;
+            if (a > b) return 1;
+            return 0;
+        })
         .reduce((acc, key) => {
             if (key !== 'format' && key !== 'callback') {
                 return acc + key + params[key];
