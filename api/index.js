@@ -88,6 +88,14 @@ const mbTracklistCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 
 // --- Helper Functions ---
 
+const extractSessionKey = (req) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+        return authHeader.substring(7);
+    }
+    return req.signedCookies.lastfm_session_key;
+};
+
 const ensureString = (val, maxLength = MAX_STRING_LENGTH) => {
     if (typeof val !== 'string') return false;
     if (val.length > maxLength) return false;
@@ -594,7 +602,7 @@ app.post('/api/logout', (req, res) => {
 
 app.post('/api/scrobble', async (req, res) => {
     const { artist, track, album, albumArtist, timestamp } = req.body;
-    const sessionKey = req.signedCookies.lastfm_session_key;
+    const sessionKey = extractSessionKey(req);
 
     if (!sessionKey) {
         return res.status(401).json({ error: 'Unauthorized: No session key found' });
@@ -707,7 +715,7 @@ app.get('/api/get-album-info', async (req, res) => {
 
 app.post('/api/scrobble-batch', async (req, res) => {
     const { tracks } = req.body;
-    const sessionKey = req.signedCookies.lastfm_session_key;
+    const sessionKey = extractSessionKey(req);
 
     if (!sessionKey) {
         return res.status(401).json({ error: 'Unauthorized: No session key found' });
@@ -753,6 +761,40 @@ app.get('/api/get-recent-tracks', async (req, res) => {
     }
 });
 
+
+app.post('/api/now-playing', async (req, res) => {
+    const { artist, track, album, albumArtist } = req.body;
+    const sessionKey = extractSessionKey(req);
+
+    if (!sessionKey) {
+        return res.status(401).json({ error: 'Unauthorized: No session key found' });
+    }
+
+    if (!artist || !track) {
+        return res.status(400).json({ error: 'Missing required fields (artist, track)' });
+    }
+
+    if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
+        return res.status(400).json({ error: `Invalid data types: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` });
+    }
+
+    try {
+        const params = {
+            artist,
+            track,
+            sk: sessionKey
+        };
+
+        if (album) params.album = album;
+        if (albumArtist) params.albumArtist = albumArtist;
+
+        const data = await makeLastFmRequest('track.updateNowPlaying', params, { signed: true, httpMethod: 'POST' });
+        return res.json(data);
+
+    } catch (error) {
+        handleRouteError(res, error, 'Failed to update now playing');
+    }
+});
 
 app.get('/api/health', (req, res) => {
     res.send('Last.ing Backend is running.');
