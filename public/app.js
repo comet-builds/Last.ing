@@ -1067,29 +1067,33 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
 
     toggleSpinner(true);
 
-    const batches = [];
-    for (let i = 0; i < tracksToScrobble.length; i += 50) {
-        batches.push(tracksToScrobble.slice(i, i + 50));
-    }
-
     try {
         const concurrencyLimit = 5;
-        for (let i = 0; i < batches.length; i += concurrencyLimit) {
-            const chunk = batches.slice(i, i + concurrencyLimit);
+        const batchSize = 50;
 
-            const chunkPromises = chunk.map(async (batch) => {
-                const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble-batch`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tracks: batch })
-                });
+        for (let i = 0; i < tracksToScrobble.length; i += batchSize * concurrencyLimit) {
+            const chunkPromises = [];
 
-                const data = await response.json();
-                if (data.error) {
-                    throw new Error(data.message || 'Batch scrobble failed');
-                }
-                return data;
-            });
+            for (let j = 0; j < concurrencyLimit; j++) {
+                const start = i + j * batchSize;
+                if (start >= tracksToScrobble.length) break;
+
+                const batch = tracksToScrobble.slice(start, start + batchSize);
+
+                chunkPromises.push((async (currentBatch) => {
+                    const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble-batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tracks: currentBatch })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) {
+                        throw new Error(data.message || 'Batch scrobble failed');
+                    }
+                    return data;
+                })(batch));
+            }
 
             await Promise.all(chunkPromises);
         }
