@@ -31,6 +31,33 @@ app.use(limiter);
 
 app.use(helmet());
 app.use(compression());
+
+const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
+
+app.all('/2.0/*', (req, res) => {
+    const searchString = req.originalUrl.substring(req.originalUrl.indexOf('?'));
+    const targetUrl = searchString !== req.originalUrl ? `${API_ROOT}${searchString}` : API_ROOT;
+
+    const options = {
+        method: req.method,
+        headers: { ...req.headers }
+    };
+
+    delete options.headers.host;
+
+    const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res, { end: true });
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('Reverse Proxy Error:', err.message);
+        res.status(500).json({ error: 'Proxy Request Failed', details: err.message });
+    });
+
+    req.pipe(proxyReq, { end: true });
+});
+
 app.use(express.json());
 const COOKIE_SECRET = process.env.COOKIE_SECRET || process.env.LASTFM_SHARED_SECRET;
 app.use(cookieParser(COOKIE_SECRET));
@@ -44,7 +71,6 @@ app.use((req, res, next) => {
 
 const API_KEY = process.env.LASTFM_API_KEY;
 const SHARED_SECRET = process.env.LASTFM_SHARED_SECRET;
-const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 const MUSICBRAINZ_API_ROOT = 'https://musicbrainz.org/ws/2/';
 const MUSICBRAINZ_USER_AGENT = 'Last.ing/1.0 ( https://github.com/comet-builds/Last.ing )';
 const CACHE_SIZE_LIMIT = 500;
