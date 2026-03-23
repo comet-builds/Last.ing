@@ -37,8 +37,6 @@ const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 app.use('/2.0', (req, res) => {
     const targetUrl = new URL(API_ROOT);
 
-    // Safely construct query params using Express req.query to avoid SSRF
-    // string concatenation warnings from SonarQube
     for (const [key, value] of Object.entries(req.query)) {
         targetUrl.searchParams.append(key, value);
     }
