@@ -10,15 +10,9 @@ require('dotenv').config();
 
 const app = express();
 
-const getTrustedProxies = () => {
-    const envProxies = process.env.TRUSTED_PROXIES;
-    if (envProxies) {
-        return envProxies.split(',').map(p => p.trim());
-    }
-    return 'loopback';
-};
-
-app.set('trust proxy', getTrustedProxies());
+// Vercel routes traffic through its edge network, adding exactly one trusted proxy
+// By trusting the first proxy, we correctly identify the user IP and prevent spoofing.
+app.set('trust proxy', 1);
 
 const limiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
