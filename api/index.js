@@ -394,6 +394,28 @@ const getAlbumInfoFromTrack = (trackInfo) => {
     return null;
 };
 
+const validateScrobbleTrack = (trackData) => {
+    if (!trackData || typeof trackData !== 'object') {
+        return { isValid: false, error: 'Invalid track data' };
+    }
+
+    const { artist, track, timestamp, album, albumArtist } = trackData;
+
+    if (!artist || !track || !timestamp) {
+        return { isValid: false, error: 'Missing required fields (artist, track, timestamp)' };
+    }
+
+    if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
+        return { isValid: false, error: `Invalid data types: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
+    }
+
+    if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
+        return { isValid: false, error: 'Invalid data type: timestamp must be an integer' };
+    }
+
+    return { isValid: true };
+};
+
 const validateTrackData = (trackData, index) => {
     if (!trackData || typeof trackData !== 'object') {
         return { isValid: false, error: `Invalid track data at index ${index}` };
@@ -433,6 +455,20 @@ const validateBatchScrobbleTracks = (tracks) => {
     }
 
     return { isValid: true };
+};
+
+const formatScrobbleParams = (trackData, sessionKey) => {
+    const params = {
+        artist: trackData.artist,
+        track: trackData.track,
+        timestamp: trackData.timestamp,
+        sk: sessionKey
+    };
+
+    if (trackData.album) params.album = trackData.album;
+    if (trackData.albumArtist) params.albumArtist = trackData.albumArtist;
+
+    return params;
 };
 
 const formatBatchScrobbleParams = (tracks, sessionKey) => {
@@ -666,39 +702,21 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.post('/api/scrobble', async (req, res) => {
-    const { artist, track, album, albumArtist, timestamp } = req.body;
     const sessionKey = req.signedCookies.lastfm_session_key;
 
     if (!sessionKey) {
         return res.status(401).json({ error: 'Unauthorized: No session key found' });
     }
 
-    if (!artist || !track || !timestamp) {
-        return res.status(400).json({ error: 'Missing required fields (artist, track, timestamp)' });
-    }
-
-    if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
-        return res.status(400).json({ error: `Invalid data types: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` });
-    }
-
-    if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
-        return res.status(400).json({ error: 'Invalid data type: timestamp must be an integer' });
+    const validationResult = validateScrobbleTrack(req.body);
+    if (!validationResult.isValid) {
+        return res.status(400).json({ error: validationResult.error });
     }
 
     try {
-        const params = {
-            artist,
-            track,
-            timestamp,
-            sk: sessionKey
-        };
-
-        if (album) params.album = album;
-        if (albumArtist) params.albumArtist = albumArtist;
-
+        const params = formatScrobbleParams(req.body, sessionKey);
         const data = await makeLastFmRequest('track.scrobble', params, { signed: true, httpMethod: 'POST' });
         return res.json(data);
-
     } catch (error) {
         handleRouteError(res, error, 'Failed to scrobble track');
     }
