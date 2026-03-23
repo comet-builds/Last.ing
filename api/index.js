@@ -35,8 +35,14 @@ app.use(compression());
 const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 
 app.all('/2.0/*', (req, res) => {
-    const searchString = req.originalUrl.substring(req.originalUrl.indexOf('?'));
-    const targetUrl = searchString !== req.originalUrl ? `${API_ROOT}${searchString}` : API_ROOT;
+    let targetUrl;
+    try {
+        const queryIndex = req.originalUrl.indexOf('?');
+        const searchString = queryIndex === -1 ? '' : req.originalUrl.substring(queryIndex);
+        targetUrl = new URL(searchString, API_ROOT);
+    } catch (err) {
+        return res.status(400).json({ error: 'Invalid URL constructed' });
+    }
 
     const options = {
         method: req.method,
@@ -52,7 +58,11 @@ app.all('/2.0/*', (req, res) => {
 
     proxyReq.on('error', (err) => {
         console.error('Reverse Proxy Error:', err.message);
-        res.status(500).json({ error: 'Proxy Request Failed', details: err.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Proxy Request Failed', details: err.message });
+        } else {
+            res.end();
+        }
     });
 
     req.pipe(proxyReq, { end: true });
