@@ -469,11 +469,34 @@ const getSearchTrackAlbums = async (artist, track) => {
     const searchData = await makeLastFmRequest('track.search', { track, artist, limit: 5 });
     const tracks = searchData?.results?.trackmatches?.track || [];
 
+    const originalArtistLower = artist.toLowerCase();
+    const originalTrackLower = track.toLowerCase();
+
+    const uniqueTracks = [];
+    const seenTracks = new Set();
+
+    for (const t of tracks) {
+        const tArtistLower = t.artist.toLowerCase();
+        const tNameLower = t.name.toLowerCase();
+
+        if (tArtistLower === originalArtistLower && tNameLower === originalTrackLower) {
+            continue;
+        }
+
+        const mbid = t.mbid || '';
+        const uniqueKey = mbid ? `mbid:${mbid}` : `name:${tArtistLower}|${tNameLower}`;
+
+        if (!seenTracks.has(uniqueKey)) {
+            seenTracks.add(uniqueKey);
+            uniqueTracks.push(t);
+        }
+    }
+
     const matchAlbums = [];
     const chunkSize = 2; // Concurrency limit to avoid Last.fm rate limits (5 req/sec)
 
-    for (let i = 0; i < tracks.length; i += chunkSize) {
-        const chunk = tracks.slice(i, i + chunkSize);
+    for (let i = 0; i < uniqueTracks.length; i += chunkSize) {
+        const chunk = uniqueTracks.slice(i, i + chunkSize);
         const chunkPromises = chunk.map(async (trackMatch) => {
             const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : JSON.stringify(['track', trackMatch.artist, trackMatch.name]);
             const cachedData = albumCache.get(cacheKey);
