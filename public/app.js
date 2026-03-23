@@ -1451,8 +1451,9 @@ if (albumNowBtn) {
     });
 }
 
-const urlParams = new URLSearchParams(globalThis.location.search);
-const token = urlParams.get('token');
+const searchParams = new URLSearchParams(globalThis.location.search);
+const fragmentParams = new URLSearchParams(globalThis.location.hash.substring(1));
+const token = fragmentParams.get('token') || searchParams.get('token');
 
 // --- State Management ---
 

@@ -552,7 +552,8 @@ app.get('/api/login-url', (req, res) => {
         return res.status(500).json({ error: 'Server misconfiguration: Missing API Key' });
     }
     const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-    const authUrl = `https://www.last.fm/api/auth/?api_key=${API_KEY}&cb=${encodeURIComponent(frontendUrl)}`;
+    const callbackUrl = `${frontendUrl.replace(/\/$/, '')}/#`;
+    const authUrl = `https://www.last.fm/api/auth/?api_key=${API_KEY}&cb=${encodeURIComponent(callbackUrl)}`;
     res.json({ url: authUrl });
 });
 
