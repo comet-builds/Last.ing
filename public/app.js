@@ -442,6 +442,34 @@ setupPin(pinAlbumArtistBtn);
 
 // --- Track Scrobble Logic ---
 
+async function submitScrobble(payload) {
+    toggleSpinner(true);
+
+    try {
+        const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.message || 'Scrobble failed');
+        }
+
+        showStatus(`Scrobbled`, 'success');
+        return true;
+
+    } catch (error) {
+        console.error('Scrobble Error:', error);
+        showStatus(`Error: ${error.message}`, 'error');
+        return false;
+    } finally {
+        toggleSpinner(false);
+    }
+}
+
 scrobbleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -465,35 +493,15 @@ scrobbleForm.addEventListener('submit', async (e) => {
     if (album) payload.album = album;
     if (albumArtist) payload.albumArtist = albumArtist;
 
-    toggleSpinner(true);
+    const success = await submitScrobble(payload);
 
-    try {
-        const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-            throw new Error(data.message || 'Scrobble failed');
-        }
-
-        showStatus(`Scrobbled`, 'success');
-
+    if (success) {
         if (!pinArtistBtn.classList.contains('active')) artistInput.value = '';
         if (!pinTrackBtn.classList.contains('active')) trackInput.value = '';
         if (!pinAlbumBtn.classList.contains('active')) albumInput.value = '';
         if (!pinAlbumArtistBtn.classList.contains('active')) albumArtistInput.value = '';
 
         setTimestampToNow(dateInput, timeInput);
-
-    } catch (error) {
-        console.error('Scrobble Error:', error);
-        showStatus(`Error: ${error.message}`, 'error');
-    } finally {
-        toggleSpinner(false);
     }
 });
 
