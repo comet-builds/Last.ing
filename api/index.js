@@ -31,6 +31,43 @@ app.use(limiter);
 
 app.use(helmet());
 app.use(compression());
+
+const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
+
+app.all('/2.0/*', (req, res) => {
+    let targetUrl;
+    try {
+        const queryIndex = req.originalUrl.indexOf('?');
+        const searchString = queryIndex === -1 ? '' : req.originalUrl.substring(queryIndex);
+        targetUrl = new URL(searchString, API_ROOT);
+    } catch (err) {
+        return res.status(400).json({ error: 'Invalid URL constructed' });
+    }
+
+    const options = {
+        method: req.method,
+        headers: { ...req.headers }
+    };
+
+    delete options.headers.host;
+
+    const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res, { end: true });
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('Reverse Proxy Error:', err.message);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Proxy Request Failed', details: err.message });
+        } else {
+            res.end();
+        }
+    });
+
+    req.pipe(proxyReq, { end: true });
+});
+
 app.use(express.json());
 const COOKIE_SECRET = process.env.COOKIE_SECRET || process.env.LASTFM_SHARED_SECRET;
 app.use(cookieParser(COOKIE_SECRET));
@@ -44,7 +81,6 @@ app.use((req, res, next) => {
 
 const API_KEY = process.env.LASTFM_API_KEY;
 const SHARED_SECRET = process.env.LASTFM_SHARED_SECRET;
-const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 const MUSICBRAINZ_API_ROOT = 'https://musicbrainz.org/ws/2/';
 const MUSICBRAINZ_USER_AGENT = 'Last.ing/1.0 ( https://github.com/comet-builds/Last.ing )';
 const CACHE_SIZE_LIMIT = 500;
