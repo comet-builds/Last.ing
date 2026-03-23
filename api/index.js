@@ -34,7 +34,7 @@ app.use(compression());
 
 const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 
-app.use('/2.0', (req, res) => {
+app.use('/api/2.0/', (req, res) => {
     const targetUrl = new URL(API_ROOT);
 
     for (const [key, value] of Object.entries(req.query)) {
