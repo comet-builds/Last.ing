@@ -1235,19 +1235,18 @@ function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
     return result;
 }
 
-function createHistoryItem(track, dateObj) {
-    const item = document.createElement('div');
-    item.className = 'history-item';
-
-    const isNoAlbum = !track.album?.['#text'];
-
+function createHistoryCover(track) {
     const imageUrls = getSortedImageUrls(track.image);
 
     const coverImg = document.createElement('img');
     coverImg.className = 'history-cover';
     coverImg.alt = track.album?.['#text'] || 'Album Cover';
-    const coverEl = setImageWithFallback(coverImg, imageUrls);
-    item.appendChild(coverEl);
+
+    return setImageWithFallback(coverImg, imageUrls);
+}
+
+function createHistoryInfo(track) {
+    const isNoAlbum = !track.album?.['#text'];
 
     const info = document.createElement('div');
     info.className = 'history-info';
@@ -1284,13 +1283,10 @@ function createHistoryItem(track, dateObj) {
         info.appendChild(meta);
     }
 
-    const rightDiv = document.createElement('div');
-    rightDiv.className = 'history-right';
+    return info;
+}
 
-    const timeSpan = document.createElement('span');
-    timeSpan.className = 'history-time';
-    timeSpan.textContent = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
+function createHistoryActionButtons(track) {
     const buttonsDiv = document.createElement('div');
     buttonsDiv.className = 'history-buttons';
 
@@ -1340,10 +1336,26 @@ function createHistoryItem(track, dateObj) {
     buttonsDiv.appendChild(editBtn);
     buttonsDiv.appendChild(deleteBtn);
 
-    rightDiv.appendChild(timeSpan);
-    rightDiv.appendChild(buttonsDiv);
+    return buttonsDiv;
+}
 
-    item.appendChild(info);
+function createHistoryItem(track, dateObj) {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+
+    item.appendChild(createHistoryCover(track));
+    item.appendChild(createHistoryInfo(track));
+
+    const rightDiv = document.createElement('div');
+    rightDiv.className = 'history-right';
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'history-time';
+    timeSpan.textContent = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    rightDiv.appendChild(timeSpan);
+    rightDiv.appendChild(createHistoryActionButtons(track));
+
     item.appendChild(rightDiv);
 
     return item;
