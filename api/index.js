@@ -386,6 +386,28 @@ const getAlbumInfoFromTrack = (trackInfo) => {
     return null;
 };
 
+const validateTrackData = (trackData, index) => {
+    if (!trackData || typeof trackData !== 'object') {
+        return { isValid: false, error: `Invalid track data at index ${index}` };
+    }
+
+    const { artist, track, timestamp, album, albumArtist } = trackData;
+
+    if (!artist || !track || !timestamp) {
+        return { isValid: false, error: `Missing required fields at index ${index} (artist, track, timestamp)` };
+    }
+
+    if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
+        return { isValid: false, error: `Invalid data types at index ${index}: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
+    }
+
+    if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
+        return { isValid: false, error: `Invalid data type at index ${index}: timestamp must be an integer` };
+    }
+
+    return { isValid: true };
+};
+
 const validateBatchScrobbleTracks = (tracks) => {
     if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
         return { isValid: false, error: 'Missing tracks array' };
@@ -396,23 +418,9 @@ const validateBatchScrobbleTracks = (tracks) => {
     }
 
     for (let i = 0; i < tracks.length; i++) {
-        const trackData = tracks[i];
-        if (!trackData || typeof trackData !== 'object') {
-            return { isValid: false, error: `Invalid track data at index ${i}` };
-        }
-
-        const { artist, track, timestamp, album, albumArtist } = trackData;
-
-        if (!artist || !track || !timestamp) {
-            return { isValid: false, error: `Missing required fields at index ${i} (artist, track, timestamp)` };
-        }
-
-        if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
-            return { isValid: false, error: `Invalid data types at index ${i}: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
-        }
-
-        if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
-            return { isValid: false, error: `Invalid data type at index ${i}: timestamp must be an integer` };
+        const validation = validateTrackData(tracks[i], i);
+        if (!validation.isValid) {
+            return validation;
         }
     }
 
