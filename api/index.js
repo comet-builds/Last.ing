@@ -353,24 +353,32 @@ const validateAlbumInfoParams = (artist, album, mbid) => {
     return { error: 'Missing required parameters: (artist and album) or mbid' };
 };
 
-const enrichAlbumWithMusicBrainzFallback = async (data, artist, album, mbid) => {
-    const tracks = data.album?.tracks?.track;
-    const hasTracks = Array.isArray(tracks) ? tracks.length > 0 : !!tracks;
+const hasAlbumTracks = (album) => {
+    const tracks = album?.tracks?.track;
+    return Array.isArray(tracks) ? tracks.length > 0 : !!tracks;
+};
 
-    if (!hasTracks) {
-        const mbTracks = await getMusicBrainzTracklist(
-            data.album?.artist || artist,
-            data.album?.name || album,
-            data.album?.mbid || mbid
-        );
-
-        if (mbTracks.length > 0) {
-            if (!data.album.tracks) {
-                data.album.tracks = {};
-            }
-            data.album.tracks.track = mbTracks;
+const updateAlbumTracks = (album, mbTracks) => {
+    if (mbTracks.length > 0) {
+        if (!album.tracks) {
+            album.tracks = {};
         }
+        album.tracks.track = mbTracks;
     }
+};
+
+const enrichAlbumWithMusicBrainzFallback = async (data, artist, album, mbid) => {
+    if (hasAlbumTracks(data.album)) {
+        return;
+    }
+
+    const mbTracks = await getMusicBrainzTracklist(
+        data.album?.artist || artist,
+        data.album?.name || album,
+        data.album?.mbid || mbid
+    );
+
+    updateAlbumTracks(data.album, mbTracks);
 };
 
 const getAlbumInfoFromTrack = (trackInfo) => {
