@@ -262,27 +262,27 @@ function getSortedImageUrls(images, preferences = ['large', 'extralarge', 'mediu
     return sortedUrls;
 }
 
+function createFallbackSvg(el) {
+    if (el.tagName.toLowerCase() === 'svg') return el;
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", el.className);
+    if (el.id) svg.setAttribute("id", el.id);
+    if (el.alt) svg.setAttribute("aria-label", el.alt);
+
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", "assets/icons/sprite.svg#icon-laser-disc");
+    svg.appendChild(use);
+
+    if (el.parentNode) {
+        el.parentNode.replaceChild(svg, el);
+    }
+    return svg;
+}
+
 function setImageWithFallback(element, imageUrls) {
-    const setFallback = (el) => {
-        if (el.tagName.toLowerCase() === 'svg') return el;
-
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("class", el.className);
-        if (el.id) svg.setAttribute("id", el.id);
-        if (el.alt) svg.setAttribute("aria-label", el.alt);
-
-        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-        use.setAttribute("href", "assets/icons/sprite.svg#icon-laser-disc");
-        svg.appendChild(use);
-
-        if (el.parentNode) {
-            el.parentNode.replaceChild(svg, el);
-        }
-        return svg;
-    };
-
     if (!imageUrls || imageUrls.length === 0) {
-        return setFallback(element);
+        return createFallbackSvg(element);
     }
 
     let imgElement = element;
@@ -306,7 +306,7 @@ function setImageWithFallback(element, imageUrls) {
 
     const loadNext = () => {
         if (currentIndex >= imageUrls.length) {
-            setFallback(imgElement);
+            createFallbackSvg(imgElement);
             return;
         }
 
