@@ -58,8 +58,8 @@ app.use(compression());
 
 
 app.use('/api/2.0/', (req, res) => {
-    const isPost = req.method === 'POST';
     const targetUrl = new URL(API_ROOT);
+    const isPost = req.method === 'POST';
 
     const processRequest = (bodyBuffer) => {
         const options = {
@@ -68,51 +68,52 @@ app.use('/api/2.0/', (req, res) => {
         };
         delete options.headers.host;
 
-        let finalBody = bodyBuffer;
+        const rawQueryString = req.originalUrl.split('?')[1] || '';
+        const queryParams = new URLSearchParams(rawQueryString);
+        let bodyParams = new URLSearchParams();
+        let hasBody = false;
 
         if (isPost && bodyBuffer && bodyBuffer.length > 0) {
-            const bodyString = bodyBuffer.toString('utf8');
-            const params = new URLSearchParams(bodyString);
-
-            // Unconditional Intercept & Resign
-            const paramsObj = Object.fromEntries(params.entries());
-            const hadSig = 'api_sig' in paramsObj;
-            delete paramsObj.api_sig;
-            paramsObj.api_key = API_KEY;
-
-            if (hadSig) {
-                paramsObj.api_sig = signParams(paramsObj); // Utilize existing global signParams helper
-            }
-
-            const newParams = new URLSearchParams();
-            Object.entries(paramsObj).forEach(([key, value]) => {
-                newParams.append(key, value);
-            });
-
-            // URLSearchParams natively converts spaces to '+', aligning with application/x-www-form-urlencoded
-            // Update finalBody and correctly size the content-length header
-            finalBody = Buffer.from(newParams.toString(), 'utf8');
-            options.headers['content-length'] = finalBody.length.toString();
-        } else if (!isPost) {
-            // Unconditional GET request interception
-            const hadSig = 'api_sig' in req.query;
-            delete req.query.api_sig;
-            req.query.api_key = API_KEY;
-
-            if (hadSig) {
-                req.query.api_sig = signParams(req.query);
-            }
+            bodyParams = new URLSearchParams(bodyBuffer.toString('utf8'));
+            hasBody = true;
         }
 
-        for (const [key, value] of Object.entries(req.query)) {
-            if (Array.isArray(value)) {
-                value.forEach(v => targetUrl.searchParams.append(key, v));
-            } else {
-                targetUrl.searchParams.append(key, value);
-            }
+        if (queryParams.has('api_key')) queryParams.set('api_key', API_KEY);
+        if (bodyParams.has('api_key')) bodyParams.set('api_key', API_KEY);
+
+        if (!queryParams.has('api_key') && !bodyParams.has('api_key')) {
+            if (isPost && hasBody) bodyParams.set('api_key', API_KEY);
+            else queryParams.set('api_key', API_KEY);
+        }
+
+        const hadSig = queryParams.has('api_sig') || bodyParams.has('api_sig');
+
+        if (hadSig) {
+            queryParams.delete('api_sig');
+            bodyParams.delete('api_sig');
+
+            const allParams = {};
+            for (const [key, value] of queryParams.entries()) allParams[key] = value;
+            for (const [key, value] of bodyParams.entries()) allParams[key] = value;
+
+            const newSig = signParams(allParams);
+
+            if (hasBody) bodyParams.set('api_sig', newSig);
+            else queryParams.set('api_sig', newSig);
+        }
+
+        for (const [key, value] of queryParams.entries()) {
+            targetUrl.searchParams.append(key, value);
+        }
+
+        let finalBody = bodyBuffer;
+        if (hasBody) {
+            finalBody = Buffer.from(bodyParams.toString(), 'utf8');
+            options.headers['content-length'] = finalBody.length.toString();
         }
 
         console.log('[DEBUG] Intercepted Proxy Request - URL:', targetUrl.href, 'Method:', req.method, 'Body:', finalBody ? finalBody.toString('utf8') : null);
+
         const proxyReq = https.request(targetUrl, options, (proxyRes) => {
             res.writeHead(proxyRes.statusCode, proxyRes.headers);
             proxyRes.pipe(res, { end: true });
@@ -120,30 +121,25 @@ app.use('/api/2.0/', (req, res) => {
 
         proxyReq.on('error', (err) => {
             console.error('Reverse Proxy Error:', err.message);
-            if (res.headersSent) {
-                res.end();
-            } else {
+            if (!res.headersSent) {
                 res.status(500).json({ error: 'Proxy Request Failed', details: err.message });
             }
         });
 
-        if (finalBody) {
-            proxyReq.write(finalBody);
-        }
+        if (finalBody) proxyReq.write(finalBody);
         proxyReq.end();
     };
 
     if (isPost) {
+        const contentType = req.headers['content-type'] || '';
+        if (!contentType.includes('application/x-www-form-urlencoded')) {
+            return res.status(415).json({ error: 'Unsupported Media Type' });
+        }
+
         const chunks = [];
         req.on('data', chunk => chunks.push(chunk));
-        req.on('end', () => {
-            const bodyBuffer = Buffer.concat(chunks);
-            processRequest(bodyBuffer);
-        });
-        req.on('error', (err) => {
-            console.error('Request body stream error:', err.message);
-            res.status(500).end();
-        });
+        req.on('end', () => processRequest(Buffer.concat(chunks)));
+        req.on('error', () => res.status(500).end());
     } else {
         processRequest(null);
     }
