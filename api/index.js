@@ -119,8 +119,6 @@ app.use('/api/2.0/', (req, res) => {
             options.headers['content-length'] = finalBody.length.toString();
         }
 
-        console.log('[DEBUG] Intercepted Proxy Request - URL:', targetUrl.href, 'Method:', req.method, 'Body:', finalBody ? finalBody.toString('utf8') : null);
-
         const proxyReq = https.request(targetUrl, options, (proxyRes) => {
             res.writeHead(proxyRes.statusCode, proxyRes.headers);
             proxyRes.pipe(res, { end: true });
