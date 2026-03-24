@@ -78,9 +78,13 @@ app.use('/api/2.0/', (req, res) => {
             if (apiKey && apiKey.length !== 32) {
                 // Path B: Intercept & Resign
                 const paramsObj = Object.fromEntries(params.entries());
+                const hadSig = !!paramsObj.api_sig;
                 delete paramsObj.api_sig;
                 paramsObj.api_key = API_KEY;
-                paramsObj.api_sig = signParams(paramsObj); // Utilize existing global signParams helper
+
+                if (hadSig) {
+                    paramsObj.api_sig = signParams(paramsObj); // Utilize existing global signParams helper
+                }
 
                 const newParams = new URLSearchParams();
                 Object.entries(paramsObj).forEach(([key, value]) => {
@@ -97,9 +101,13 @@ app.use('/api/2.0/', (req, res) => {
             const apiKey = req.query.api_key;
             if (apiKey && apiKey.length !== 32) {
                 // Path B: Intercept & Resign
+                const hadSig = !!req.query.api_sig;
                 delete req.query.api_sig;
                 req.query.api_key = API_KEY;
-                req.query.api_sig = signParams(req.query);
+
+                if (hadSig) {
+                    req.query.api_sig = signParams(req.query);
+                }
             }
         }
 
