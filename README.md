@@ -8,6 +8,7 @@ A minimalist, responsive manual scrobbler for Last.fm.
 -   **Manual Track Scrobbling**: Easily scrobble individual tracks with custom timestamps.
 -   **Batch Album Scrobbling**: Search for albums, verify tracklists, and scrobble entire albums at once with automatically calculated timestamps.
 -   **History Management**: View your recent scrobbles, filter by duplicates or missing album info, and quickly access Last.fm to edit or delete entries.
+-   **Reverse Proxy Scrobbling**: The `/api/2.0/` endpoint acts as a reverse proxy for scrobbling to Last.fm (for cases when it's not available directly).
 -   **Secure**: Uses Last.fm API authentication.
 -   **Responsive**: Designed to work perfectly on both desktop and mobile devices.
 
