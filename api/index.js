@@ -10,6 +10,33 @@ require('dotenv').config();
 
 const app = express();
 
+const API_KEY = process.env.LASTFM_API_KEY;
+const SHARED_SECRET = process.env.LASTFM_SHARED_SECRET;
+const MUSICBRAINZ_API_ROOT = 'https://musicbrainz.org/ws/2/';
+const MUSICBRAINZ_USER_AGENT = 'Last.ing/1.0 ( https://github.com/comet-builds/Last.ing )';
+const CACHE_SIZE_LIMIT = 500;
+const MAX_STRING_LENGTH = 500;
+const COOKIE_SECRET = process.env.COOKIE_SECRET || process.env.LASTFM_SHARED_SECRET;
+const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
+
+const signParams = (params) => {
+    const signatureString = Object.keys(params)
+        .sort((a, b) => {
+            if (a < b) return -1;
+            if (a > b) return 1;
+            return 0;
+        })
+        .reduce((acc, key) => {
+            if (key !== 'format' && key !== 'callback') {
+                return acc + key + params[key];
+            }
+            return acc;
+        }, '');
+
+    return crypto.createHash('md5').update(signatureString + SHARED_SECRET).digest('hex');
+};
+
+
 // Vercel routes traffic through its edge network, adding exactly one trusted proxy
 // By trusting the first proxy, we correctly identify the user IP and prevent spoofing.
 app.set('trust proxy', 1);
@@ -26,41 +53,98 @@ app.use(limiter);
 app.use(helmet());
 app.use(compression());
 
-const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 
 app.use('/api/2.0/', (req, res) => {
+    const isPost = req.method === 'POST';
     const targetUrl = new URL(API_ROOT);
 
-    for (const [key, value] of Object.entries(req.query)) {
-        targetUrl.searchParams.append(key, value);
-    }
+    const processRequest = (bodyBuffer) => {
+        const options = {
+            method: req.method,
+            headers: { ...req.headers }
+        };
+        delete options.headers.host;
 
-    const options = {
-        method: req.method,
-        headers: { ...req.headers }
+        let finalBody = bodyBuffer;
+
+        if (isPost && bodyBuffer && bodyBuffer.length > 0) {
+            const bodyString = bodyBuffer.toString('utf8');
+            const params = new URLSearchParams(bodyString);
+            const apiKey = params.get('api_key');
+
+            if (apiKey && apiKey.length !== 32) {
+                // Path B: Intercept & Resign
+                const paramsObj = Object.fromEntries(params.entries());
+                delete paramsObj.api_sig;
+                paramsObj.api_key = API_KEY;
+                paramsObj.api_sig = signParams(paramsObj); // Utilize existing global signParams helper
+
+                const newParams = new URLSearchParams();
+                Object.entries(paramsObj).forEach(([key, value]) => {
+                    newParams.append(key, value);
+                });
+
+                // URLSearchParams natively converts spaces to '+', aligning with application/x-www-form-urlencoded
+                // Update finalBody and correctly size the content-length header
+                finalBody = Buffer.from(newParams.toString(), 'utf8');
+                options.headers['content-length'] = finalBody.length.toString();
+            }
+        } else if (!isPost) {
+            // GET request interception
+            const apiKey = req.query.api_key;
+            if (apiKey && apiKey.length !== 32) {
+                // Path B: Intercept & Resign
+                delete req.query.api_sig;
+                req.query.api_key = API_KEY;
+                req.query.api_sig = signParams(req.query);
+            }
+        }
+
+        for (const [key, value] of Object.entries(req.query)) {
+            if (Array.isArray(value)) {
+                value.forEach(v => targetUrl.searchParams.append(key, v));
+            } else {
+                targetUrl.searchParams.append(key, value);
+            }
+        }
+
+        const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+            res.writeHead(proxyRes.statusCode, proxyRes.headers);
+            proxyRes.pipe(res, { end: true });
+        });
+
+        proxyReq.on('error', (err) => {
+            console.error('Reverse Proxy Error:', err.message);
+            if (res.headersSent) {
+                res.end();
+            } else {
+                res.status(500).json({ error: 'Proxy Request Failed', details: err.message });
+            }
+        });
+
+        if (finalBody) {
+            proxyReq.write(finalBody);
+        }
+        proxyReq.end();
     };
 
-    delete options.headers.host;
-
-    const proxyReq = https.request(targetUrl, options, (proxyRes) => {
-        res.writeHead(proxyRes.statusCode, proxyRes.headers);
-        proxyRes.pipe(res, { end: true });
-    });
-
-    proxyReq.on('error', (err) => {
-        console.error('Reverse Proxy Error:', err.message);
-        if (res.headersSent) {
-            res.end();
-        } else {
-            res.status(500).json({ error: 'Proxy Request Failed', details: err.message });
-        }
-    });
-
-    req.pipe(proxyReq, { end: true });
+    if (isPost) {
+        const chunks = [];
+        req.on('data', chunk => chunks.push(chunk));
+        req.on('end', () => {
+            const bodyBuffer = Buffer.concat(chunks);
+            processRequest(bodyBuffer);
+        });
+        req.on('error', (err) => {
+            console.error('Request body stream error:', err.message);
+            res.status(500).end();
+        });
+    } else {
+        processRequest(null);
+    }
 });
 
 app.use(express.json());
-const COOKIE_SECRET = process.env.COOKIE_SECRET || process.env.LASTFM_SHARED_SECRET;
 app.use(cookieParser(COOKIE_SECRET));
 
 app.use((req, res, next) => {
@@ -70,12 +154,6 @@ app.use((req, res, next) => {
     next();
 });
 
-const API_KEY = process.env.LASTFM_API_KEY;
-const SHARED_SECRET = process.env.LASTFM_SHARED_SECRET;
-const MUSICBRAINZ_API_ROOT = 'https://musicbrainz.org/ws/2/';
-const MUSICBRAINZ_USER_AGENT = 'Last.ing/1.0 ( https://github.com/comet-builds/Last.ing )';
-const CACHE_SIZE_LIMIT = 500;
-const MAX_STRING_LENGTH = 500;
 
 const agent = new https.Agent({ keepAlive: true });
 const apiClient = axios.create({
@@ -243,22 +321,6 @@ const getMusicBrainzTracklist = async (artist, album, mbid) => {
     }
 };
 
-const signParams = (params) => {
-    const signatureString = Object.keys(params)
-        .sort((a, b) => {
-            if (a < b) return -1;
-            if (a > b) return 1;
-            return 0;
-        })
-        .reduce((acc, key) => {
-            if (key !== 'format' && key !== 'callback') {
-                return acc + key + params[key];
-            }
-            return acc;
-        }, '');
-
-    return crypto.createHash('md5').update(signatureString + SHARED_SECRET).digest('hex');
-};
 
 const sanitizeError = (error) => {
     let responseData;
