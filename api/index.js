@@ -60,6 +60,8 @@ app.use(compression());
 app.use('/api/2.0/', (req, res) => {
     const isPost = req.method === 'POST';
     const targetUrl = new URL(API_ROOT);
+    const userAgent = req.headers['user-agent'] || '';
+    const isPanoScrobbler = userAgent.toLowerCase().startsWith('pano scrobbler');
 
     const processRequest = (bodyBuffer) => {
         const options = {
@@ -73,9 +75,8 @@ app.use('/api/2.0/', (req, res) => {
         if (isPost && bodyBuffer && bodyBuffer.length > 0) {
             const bodyString = bodyBuffer.toString('utf8');
             const params = new URLSearchParams(bodyString);
-            const apiKey = params.get('api_key');
 
-            if (apiKey && apiKey.length !== 32) {
+            if (isPanoScrobbler) {
                 // Path B: Intercept & Resign
                 const paramsObj = Object.fromEntries(params.entries());
                 const hadSig = 'api_sig' in paramsObj;
@@ -98,8 +99,7 @@ app.use('/api/2.0/', (req, res) => {
             }
         } else if (!isPost) {
             // GET request interception
-            const apiKey = req.query.api_key;
-            if (apiKey && apiKey.length !== 32) {
+            if (isPanoScrobbler) {
                 // Path B: Intercept & Resign
                 const hadSig = 'api_sig' in req.query;
                 delete req.query.api_sig;
