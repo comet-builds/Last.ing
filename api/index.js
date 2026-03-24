@@ -60,8 +60,6 @@ app.use(compression());
 app.use('/api/2.0/', (req, res) => {
     const isPost = req.method === 'POST';
     const targetUrl = new URL(API_ROOT);
-    const userAgent = req.headers['user-agent'] || '';
-    const isPanoScrobbler = userAgent.toLowerCase().startsWith('pano scrobbler');
 
     const processRequest = (bodyBuffer) => {
         const options = {
@@ -76,38 +74,33 @@ app.use('/api/2.0/', (req, res) => {
             const bodyString = bodyBuffer.toString('utf8');
             const params = new URLSearchParams(bodyString);
 
-            if (isPanoScrobbler) {
-                // Path B: Intercept & Resign
-                const paramsObj = Object.fromEntries(params.entries());
-                const hadSig = 'api_sig' in paramsObj;
-                delete paramsObj.api_sig;
-                paramsObj.api_key = API_KEY;
+            // Unconditional Intercept & Resign
+            const paramsObj = Object.fromEntries(params.entries());
+            const hadSig = 'api_sig' in paramsObj;
+            delete paramsObj.api_sig;
+            paramsObj.api_key = API_KEY;
 
-                if (hadSig) {
-                    paramsObj.api_sig = signParams(paramsObj); // Utilize existing global signParams helper
-                }
-
-                const newParams = new URLSearchParams();
-                Object.entries(paramsObj).forEach(([key, value]) => {
-                    newParams.append(key, value);
-                });
-
-                // URLSearchParams natively converts spaces to '+', aligning with application/x-www-form-urlencoded
-                // Update finalBody and correctly size the content-length header
-                finalBody = Buffer.from(newParams.toString(), 'utf8');
-                options.headers['content-length'] = finalBody.length.toString();
+            if (hadSig) {
+                paramsObj.api_sig = signParams(paramsObj); // Utilize existing global signParams helper
             }
-        } else if (!isPost) {
-            // GET request interception
-            if (isPanoScrobbler) {
-                // Path B: Intercept & Resign
-                const hadSig = 'api_sig' in req.query;
-                delete req.query.api_sig;
-                req.query.api_key = API_KEY;
 
-                if (hadSig) {
-                    req.query.api_sig = signParams(req.query);
-                }
+            const newParams = new URLSearchParams();
+            Object.entries(paramsObj).forEach(([key, value]) => {
+                newParams.append(key, value);
+            });
+
+            // URLSearchParams natively converts spaces to '+', aligning with application/x-www-form-urlencoded
+            // Update finalBody and correctly size the content-length header
+            finalBody = Buffer.from(newParams.toString(), 'utf8');
+            options.headers['content-length'] = finalBody.length.toString();
+        } else if (!isPost) {
+            // Unconditional GET request interception
+            const hadSig = 'api_sig' in req.query;
+            delete req.query.api_sig;
+            req.query.api_key = API_KEY;
+
+            if (hadSig) {
+                req.query.api_sig = signParams(req.query);
             }
         }
 
