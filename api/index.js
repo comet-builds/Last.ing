@@ -39,6 +39,34 @@ const signParams = (params) => {
     return crypto.createHash('md5').update(signatureString + SHARED_SECRET).digest('hex');
 };
 
+const injectApiKey = (queryParams, bodyParams, isPost, hasBody) => {
+    if (queryParams.has('api_key')) queryParams.set('api_key', API_KEY);
+    if (bodyParams.has('api_key')) bodyParams.set('api_key', API_KEY);
+
+    if (!queryParams.has('api_key') && !bodyParams.has('api_key')) {
+        if (isPost && hasBody) bodyParams.set('api_key', API_KEY);
+        else queryParams.set('api_key', API_KEY);
+    }
+};
+
+const recalculateSignature = (queryParams, bodyParams, hasBody) => {
+    const hadSig = queryParams.has('api_sig') || bodyParams.has('api_sig');
+
+    if (hadSig) {
+        queryParams.delete('api_sig');
+        bodyParams.delete('api_sig');
+
+        const allParams = {};
+        for (const [key, value] of queryParams.entries()) allParams[key] = value;
+        for (const [key, value] of bodyParams.entries()) allParams[key] = value;
+
+        const newSig = signParams(allParams);
+
+        if (hasBody) bodyParams.set('api_sig', newSig);
+        else queryParams.set('api_sig', newSig);
+    }
+};
+
 
 // Vercel routes traffic through its edge network, adding exactly one trusted proxy
 // By trusting the first proxy, we correctly identify the user IP and prevent spoofing.
@@ -78,29 +106,8 @@ app.use('/api/2.0/', (req, res) => {
             hasBody = true;
         }
 
-        if (queryParams.has('api_key')) queryParams.set('api_key', API_KEY);
-        if (bodyParams.has('api_key')) bodyParams.set('api_key', API_KEY);
-
-        if (!queryParams.has('api_key') && !bodyParams.has('api_key')) {
-            if (isPost && hasBody) bodyParams.set('api_key', API_KEY);
-            else queryParams.set('api_key', API_KEY);
-        }
-
-        const hadSig = queryParams.has('api_sig') || bodyParams.has('api_sig');
-
-        if (hadSig) {
-            queryParams.delete('api_sig');
-            bodyParams.delete('api_sig');
-
-            const allParams = {};
-            for (const [key, value] of queryParams.entries()) allParams[key] = value;
-            for (const [key, value] of bodyParams.entries()) allParams[key] = value;
-
-            const newSig = signParams(allParams);
-
-            if (hasBody) bodyParams.set('api_sig', newSig);
-            else queryParams.set('api_sig', newSig);
-        }
+        injectApiKey(queryParams, bodyParams, isPost, hasBody);
+        recalculateSignature(queryParams, bodyParams, hasBody);
 
         for (const [key, value] of queryParams.entries()) {
             targetUrl.searchParams.append(key, value);
