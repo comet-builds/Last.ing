@@ -136,9 +136,15 @@ app.use('/api/2.0/', (req, res) => {
     };
 
     if (isPost) {
-        const contentType = req.headers['content-type'] || '';
-        if (!contentType.includes('application/x-www-form-urlencoded')) {
-            return res.status(415).json({ error: 'Unsupported Media Type' });
+        const contentLength = req.headers['content-length'];
+        const hasBodyContent = contentLength && contentLength !== '0';
+        const isChunked = req.headers['transfer-encoding'] === 'chunked';
+
+        if (hasBodyContent || isChunked) {
+            const contentType = req.headers['content-type'] || '';
+            if (!contentType.includes('application/x-www-form-urlencoded')) {
+                return res.status(415).json({ error: 'Unsupported Media Type' });
+            }
         }
 
         const chunks = [];
