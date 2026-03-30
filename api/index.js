@@ -493,49 +493,31 @@ const getAlbumInfoFromTrack = (trackInfo) => {
     return null;
 };
 
-const validateScrobbleTrack = (trackData) => {
-    if (!trackData || typeof trackData !== 'object') {
-        return { isValid: false, error: 'Invalid track data' };
-    }
-
-    const { artist, track, timestamp, album, albumArtist } = trackData;
-
-    if (!artist || !track || !timestamp) {
-        return { isValid: false, error: 'Missing required fields (artist, track, timestamp)' };
-    }
-
-    if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
-        return { isValid: false, error: `Invalid data types: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
-    }
-
-    if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
-        return { isValid: false, error: 'Invalid data type: timestamp must be an integer' };
-    }
-
-    return { isValid: true };
-};
-
 const validateTrackData = (trackData, index) => {
+    const indexStr = index !== undefined ? ` at index ${index}` : '';
+
     if (!trackData || typeof trackData !== 'object') {
-        return { isValid: false, error: `Invalid track data at index ${index}` };
+        return { isValid: false, error: `Invalid track data${indexStr}` };
     }
 
     const { artist, track, timestamp, album, albumArtist } = trackData;
 
     if (!artist || !track || !timestamp) {
-        return { isValid: false, error: `Missing required fields at index ${index} (artist, track, timestamp)` };
+        return { isValid: false, error: `Missing required fields${indexStr} (artist, track, timestamp)` };
     }
 
     if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
-        return { isValid: false, error: `Invalid data types at index ${index}: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
+        return { isValid: false, error: `Invalid data types${indexStr}: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
     }
 
     if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
-        return { isValid: false, error: `Invalid data type at index ${index}: timestamp must be an integer` };
+        return { isValid: false, error: `Invalid data type${indexStr}: timestamp must be an integer` };
     }
 
     return { isValid: true };
 };
+
+const validateScrobbleTrack = (trackData) => validateTrackData(trackData);
 
 const validateBatchScrobbleTracks = (tracks) => {
     if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
