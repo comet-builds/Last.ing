@@ -19,6 +19,7 @@ const MUSICBRAINZ_API_ROOT = 'https://musicbrainz.org/ws/2/';
 const MUSICBRAINZ_USER_AGENT = 'Last.ing/1.0 ( https://github.com/comet-builds/Last.ing )';
 const CACHE_SIZE_LIMIT = 500;
 const MAX_STRING_LENGTH = 500;
+const MAX_BODY_SIZE = 256 * 1024; // 256KB
 const COOKIE_SECRET = process.env.COOKIE_SECRET || process.env.LASTFM_SHARED_SECRET;
 const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 
@@ -141,6 +142,10 @@ app.use('/api/2.0/', (req, res) => {
         const isChunked = req.headers['transfer-encoding'] === 'chunked';
 
         if (hasBodyContent || isChunked) {
+            if (contentLength && Number.parseInt(contentLength, 10) > MAX_BODY_SIZE) {
+                return res.status(413).json({ error: 'Payload Too Large' });
+            }
+
             const contentType = req.headers['content-type'] || '';
             if (!contentType.includes('application/x-www-form-urlencoded')) {
                 return res.status(415).json({ error: 'Unsupported Media Type' });
@@ -148,15 +153,41 @@ app.use('/api/2.0/', (req, res) => {
         }
 
         const chunks = [];
-        req.on('data', chunk => chunks.push(chunk));
-        req.on('end', () => processRequest(Buffer.concat(chunks)));
-        req.on('error', () => res.status(500).end());
+        let accumulatedSize = 0;
+
+        const onData = (chunk) => {
+            accumulatedSize += chunk.length;
+            if (accumulatedSize > MAX_BODY_SIZE) {
+                req.removeListener('data', onData);
+                req.removeListener('end', onEnd);
+                req.destroy();
+                if (!res.headersSent) {
+                    res.status(413).json({ error: 'Payload Too Large' });
+                }
+                return;
+            }
+            chunks.push(chunk);
+        };
+
+        const onEnd = () => {
+            processRequest(Buffer.concat(chunks));
+        };
+
+        const onError = () => {
+            if (!res.headersSent) {
+                res.status(500).end();
+            }
+        };
+
+        req.on('data', onData);
+        req.on('end', onEnd);
+        req.on('error', onError);
     } else {
         processRequest(null);
     }
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '256kb' }));
 app.use(cookieParser(COOKIE_SECRET));
 
 app.use((req, res, next) => {
