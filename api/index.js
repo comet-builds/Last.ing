@@ -494,7 +494,7 @@ const getAlbumInfoFromTrack = (trackInfo) => {
 };
 
 const validateTrackData = (trackData, index) => {
-    const indexStr = index !== undefined ? ` at index ${index}` : '';
+    const indexStr = index === undefined ? '' : ` at index ${index}`;
 
     if (trackData === null || trackData === undefined || typeof trackData !== 'object') {
         return { isValid: false, error: `Invalid track data${indexStr}` };
