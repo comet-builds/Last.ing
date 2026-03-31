@@ -659,26 +659,14 @@ const deduplicateAlbums = (albums) => {
     const uniqueAlbums = [];
     const seen = new Map();
 
-    const nameCache = new Map();
-    const artistCache = new Map();
-
     for (const album of albums) {
-        let nameLower = nameCache.get(album.name);
-        if (nameLower === undefined) {
-            nameLower = album.name.toLowerCase();
-            nameCache.set(album.name, nameLower);
-        }
+        const nameLower = album.name.toLowerCase();
+        const artistLower = album.artist.toLowerCase();
 
         let artistSet = seen.get(nameLower);
         if (!artistSet) {
             artistSet = new Set();
             seen.set(nameLower, artistSet);
-        }
-
-        let artistLower = artistCache.get(album.artist);
-        if (artistLower === undefined) {
-            artistLower = album.artist.toLowerCase();
-            artistCache.set(album.artist, artistLower);
         }
 
         if (!artistSet.has(artistLower)) {
