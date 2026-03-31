@@ -246,16 +246,21 @@ function updateUserSession(name, images) {
 function getSortedImageUrls(images, preferences = ['large', 'extralarge', 'medium', 'small']) {
     if (!images || !Array.isArray(images)) return [];
 
+    const imageMap = new Map();
+    for (const img of images) {
+        if (!imageMap.has(img.size)) {
+            imageMap.set(img.size, img['#text']);
+        }
+    }
+
     const sortedUrls = [];
     const seenUrls = new Set();
 
     for (const size of preferences) {
-        const img = images.find(i => i.size === size);
-        if (img?.['#text']) {
-            if (!seenUrls.has(img['#text'])) {
-                sortedUrls.push(img['#text']);
-                seenUrls.add(img['#text']);
-            }
+        const url = imageMap.get(size);
+        if (url && !seenUrls.has(url)) {
+            sortedUrls.push(url);
+            seenUrls.add(url);
         }
     }
 
