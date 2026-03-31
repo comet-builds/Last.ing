@@ -973,6 +973,7 @@ function updateTrackTimestamps() {
     if (checkedIndices.length === 0) return;
 
     let currentStart = endTimestamp;
+    const tzOffsetSeconds = new Date(endTimestamp * 1000).getTimezoneOffset() * 60;
 
     for (let i = checkedIndices.length - 1; i >= 0; i--) {
         const trackIndex = checkedIndices[i];
@@ -982,10 +983,17 @@ function updateTrackTimestamps() {
 
         const span = track.timestampSpan;
         if (span) {
-            const dateObj = new Date(currentStart * 1000);
-            const hours = String(dateObj.getHours()).padStart(2, '0');
-            const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-            const seconds = String(dateObj.getSeconds()).padStart(2, '0');
+            const localSeconds = currentStart - tzOffsetSeconds;
+            const secondsInDay = ((localSeconds % 86400) + 86400) % 86400;
+
+            const h = Math.floor(secondsInDay / 3600);
+            const m = Math.floor((secondsInDay % 3600) / 60);
+            const s = secondsInDay % 60;
+
+            const hours = h < 10 ? '0' + h : '' + h;
+            const minutes = m < 10 ? '0' + m : '' + m;
+            const seconds = s < 10 ? '0' + s : '' + s;
+
             span.textContent = `${hours}:${minutes}:${seconds}`;
         }
 
