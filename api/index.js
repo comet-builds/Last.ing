@@ -82,7 +82,23 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'none'"],
+            baseUri: ["'none'"],
+            fontSrc: ["'none'"],
+            formAction: ["'none'"],
+            frameAncestors: ["'none'"],
+            frameSrc: ["'none'"],
+            imgSrc: ["'none'"],
+            objectSrc: ["'none'"],
+            scriptSrc: ["'none'"],
+            styleSrc: ["'none'"],
+            upgradeInsecureRequests: [],
+        },
+    },
+}));
 app.use(compression());
 
 
