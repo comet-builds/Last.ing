@@ -1551,7 +1551,8 @@ if (token) {
 
 if ('serviceWorker' in navigator) {
     globalThis.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {
+        navigator.serviceWorker.register('./sw.js').catch((error) => {
+            console.error('Service Worker registration failed:', error);
         });
     });
 }
