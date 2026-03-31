@@ -957,6 +957,21 @@ function createTrackRow(track, index, albumInfo) {
     return row;
 }
 
+function formatLocalTime(timestamp, tzOffsetSeconds) {
+    const localSeconds = timestamp - tzOffsetSeconds;
+    const secondsInDay = ((localSeconds % 86400) + 86400) % 86400;
+
+    const h = Math.floor(secondsInDay / 3600);
+    const m = Math.floor((secondsInDay % 3600) / 60);
+    const s = secondsInDay % 60;
+
+    const hours = h < 10 ? '0' + h : '' + h;
+    const minutes = m < 10 ? '0' + m : '' + m;
+    const seconds = s < 10 ? '0' + s : '' + s;
+
+    return `${hours}:${minutes}:${seconds}`;
+}
+
 function updateTrackTimestamps() {
     const endTimestamp = getTimestampFromInputs(albumDateInput, albumTimeInput);
     if (!endTimestamp) return;
@@ -983,18 +998,7 @@ function updateTrackTimestamps() {
 
         const span = track.timestampSpan;
         if (span) {
-            const localSeconds = currentStart - tzOffsetSeconds;
-            const secondsInDay = ((localSeconds % 86400) + 86400) % 86400;
-
-            const h = Math.floor(secondsInDay / 3600);
-            const m = Math.floor((secondsInDay % 3600) / 60);
-            const s = secondsInDay % 60;
-
-            const hours = h < 10 ? '0' + h : '' + h;
-            const minutes = m < 10 ? '0' + m : '' + m;
-            const seconds = s < 10 ? '0' + s : '' + s;
-
-            span.textContent = `${hours}:${minutes}:${seconds}`;
+            span.textContent = formatLocalTime(currentStart, tzOffsetSeconds);
         }
 
         if (i > 0) {
