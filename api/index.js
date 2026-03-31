@@ -707,7 +707,16 @@ app.get('/api/login-url', (req, res) => {
     if (!API_KEY) {
         return res.status(500).json({ error: 'Server misconfiguration: Missing API Key' });
     }
-    const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+
+    let frontendUrl = process.env.FRONTEND_URL;
+    if (!frontendUrl && process.env.VERCEL_URL) {
+        frontendUrl = `https://${process.env.VERCEL_URL}`;
+    }
+
+    if (!frontendUrl) {
+        return res.status(500).json({ error: 'Server misconfiguration: Missing FRONTEND_URL or VERCEL_URL' });
+    }
+
     const callbackUrl = `${frontendUrl.replace(/\/$/, '')}/#`;
     const authUrl = `https://www.last.fm/api/auth/?api_key=${API_KEY}&cb=${encodeURIComponent(callbackUrl)}`;
     res.json({ url: authUrl });
