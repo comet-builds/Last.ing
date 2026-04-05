@@ -265,7 +265,7 @@ function getSortedImageUrls(images, preferences = ['large', 'extralarge', 'mediu
     const sortedUrls = [];
 
     for (const size of preferences) {
-        let url = undefined;
+        let url;
 
         for (const img of images) {
             if (img.size === size) {
@@ -274,18 +274,8 @@ function getSortedImageUrls(images, preferences = ['large', 'extralarge', 'mediu
             }
         }
 
-        if (url) {
-            let seen = false;
-            for (const sortedUrl of sortedUrls) {
-                if (sortedUrl === url) {
-                    seen = true;
-                    break;
-                }
-            }
-
-            if (!seen) {
-                sortedUrls.push(url);
-            }
+        if (url && !sortedUrls.includes(url)) {
+            sortedUrls.push(url);
         }
     }
 
