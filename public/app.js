@@ -262,21 +262,30 @@ function updateUserSession(name, images) {
 function getSortedImageUrls(images, preferences = ['large', 'extralarge', 'medium', 'small']) {
     if (!images || !Array.isArray(images)) return [];
 
-    const imageMap = new Map();
-    for (const img of images) {
-        if (!imageMap.has(img.size)) {
-            imageMap.set(img.size, img['#text']);
-        }
-    }
-
     const sortedUrls = [];
-    const seenUrls = new Set();
 
     for (const size of preferences) {
-        const url = imageMap.get(size);
-        if (url && !seenUrls.has(url)) {
-            sortedUrls.push(url);
-            seenUrls.add(url);
+        let url = undefined;
+
+        for (const img of images) {
+            if (img.size === size) {
+                url = img['#text'];
+                break;
+            }
+        }
+
+        if (url) {
+            let seen = false;
+            for (const sortedUrl of sortedUrls) {
+                if (sortedUrl === url) {
+                    seen = true;
+                    break;
+                }
+            }
+
+            if (!seen) {
+                sortedUrls.push(url);
+            }
         }
     }
 
