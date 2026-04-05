@@ -83,7 +83,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use(helmet({
-    crossOriginEmbedderPolicy: { policy: "require-corp" },
+    crossOriginEmbedderPolicy: { policy: "credentialless" },
     crossOriginOpenerPolicy: { policy: "same-origin" },
     contentSecurityPolicy: {
         directives: {
