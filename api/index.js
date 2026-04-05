@@ -615,12 +615,9 @@ const getDirectTrackAlbum = async (artist, track) => {
     }
 };
 
-const getSearchTrackAlbums = async (artist, track) => {
-    const searchData = await makeLastFmRequest('track.search', { track, artist, limit: 5 });
-    const tracks = searchData?.results?.trackmatches?.track || [];
-
-    const originalArtistLower = artist.toLowerCase();
-    const originalTrackLower = track.toLowerCase();
+const filterUniqueTracks = (tracks, originalArtist, originalTrack) => {
+    const originalArtistLower = originalArtist.toLowerCase();
+    const originalTrackLower = originalTrack.toLowerCase();
 
     const uniqueTracks = [];
     const seenTracks = new Set();
@@ -642,6 +639,10 @@ const getSearchTrackAlbums = async (artist, track) => {
         }
     }
 
+    return uniqueTracks;
+};
+
+const fetchAlbumsForTracks = async (uniqueTracks) => {
     const matchAlbums = [];
     const chunkSize = 2; // Concurrency limit to avoid Last.fm rate limits (5 req/sec)
 
@@ -678,6 +679,14 @@ const getSearchTrackAlbums = async (artist, track) => {
     }
 
     return matchAlbums;
+};
+
+const getSearchTrackAlbums = async (artist, track) => {
+    const searchData = await makeLastFmRequest('track.search', { track, artist, limit: 5 });
+    const tracks = searchData?.results?.trackmatches?.track || [];
+
+    const uniqueTracks = filterUniqueTracks(tracks, artist, track);
+    return fetchAlbumsForTracks(uniqueTracks);
 };
 
 const deduplicateAlbums = (albums) => {
