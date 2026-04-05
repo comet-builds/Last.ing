@@ -411,7 +411,7 @@ const handleRouteError = (res, error, contextMessage) => {
     res.status(status).json({ error: contextMessage });
 };
 
-const makeLastFmRequest = async (method, params = {}, { signed = false, httpMethod = 'GET' } = {}) => {
+const prepareLastFmParams = (method, params, signed) => {
     if (!API_KEY) {
         throw new Error('Server misconfiguration: Missing API Key');
     }
@@ -431,7 +431,10 @@ const makeLastFmRequest = async (method, params = {}, { signed = false, httpMeth
     }
 
     requestParams.format = 'json';
+    return requestParams;
+};
 
+const executeLastFmRequest = async (httpMethod, requestParams) => {
     let response;
 
     if (httpMethod === 'POST') {
@@ -445,12 +448,17 @@ const makeLastFmRequest = async (method, params = {}, { signed = false, httpMeth
     }
 
     if (response.data.error) {
-            const error = new Error(response.data.message);
-            error.response = { data: response.data, status: 400 };
-            throw error;
+        const error = new Error(response.data.message);
+        error.response = { data: response.data, status: 400 };
+        throw error;
     }
 
     return response.data;
+};
+
+const makeLastFmRequest = async (method, params = {}, { signed = false, httpMethod = 'GET' } = {}) => {
+    const requestParams = prepareLastFmParams(method, params, signed);
+    return executeLastFmRequest(httpMethod, requestParams);
 };
 
 const validateAlbumInfoParams = (artist, album, mbid) => {
