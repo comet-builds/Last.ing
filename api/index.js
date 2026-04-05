@@ -30,12 +30,9 @@ const signParams = (params) => {
             if (a > b) return 1;
             return 0;
         })
-        .reduce((acc, key) => {
-            if (key !== 'format' && key !== 'callback') {
-                return acc + key + params[key];
-            }
-            return acc;
-        }, '');
+        .filter(key => key !== 'format' && key !== 'callback')
+        .map(key => key + params[key])
+        .join('');
 
     return crypto.createHash('md5').update(signatureString + SHARED_SECRET).digest('hex');
 };
