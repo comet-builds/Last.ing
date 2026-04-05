@@ -266,8 +266,10 @@ const isValidUUID = (val) => {
     return typeof val === 'string' && UUID_REGEX.test(val);
 };
 
+const LUCENE_ESCAPE_REGEX = /([+\-!(){}[\]^"~*?:/\\&|])/g;
+
 const escapeLucene = (str) => {
-    return str.replaceAll(/([+\-!(){}[\]^"~*?:/\\&|])/g, String.raw`\$1`);
+    return str.replaceAll(LUCENE_ESCAPE_REGEX, String.raw`\$1`);
 };
 
 const searchMusicBrainzRelease = async (artist, album) => {
