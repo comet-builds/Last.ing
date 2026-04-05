@@ -152,7 +152,7 @@ loginBtn.addEventListener('click', async () => {
             throw new Error(data.error);
         }
 
-        if (data.url && isValidUrl(data.url)) {
+        if (data.url && isLastFmDomain(data.url)) {
             globalThis.location.href = data.url;
         } else {
             throw new Error('No valid login URL returned from server');
@@ -219,7 +219,23 @@ function encodeLastFmParam(param) {
 }
 
 function isValidUrl(url) {
-    return typeof url === 'string' && url.startsWith('https://');
+    if (typeof url !== 'string') return false;
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+function isLastFmDomain(url) {
+    if (typeof url !== 'string') return false;
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:' && (parsed.hostname === 'www.last.fm' || parsed.hostname === 'last.fm');
+    } catch {
+        return false;
+    }
 }
 
 function updateUserSession(name, images) {
