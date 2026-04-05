@@ -1402,7 +1402,10 @@ function renderHistory(tracks) {
     const filteredTracks = filterHistoryTracks(tracks, showNoAlbum, showDuplicates);
 
     if (filteredTracks.length === 0) {
-        historyList.innerHTML = '<p class="no-tracks-message">No tracks found matching criteria.</p>';
+        const p = document.createElement('p');
+        p.className = 'no-tracks-message';
+        p.textContent = 'No tracks found matching criteria.';
+        historyList.replaceChildren(p);
         return;
     }
 
