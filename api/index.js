@@ -250,6 +250,7 @@ const albumSearchCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const mbMbidCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const mbTracklistCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const searchCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
+const userCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 
 // --- Helper Functions ---
 
@@ -811,21 +812,34 @@ app.get('/api/check-auth', async (req, res) => {
         return res.json({ authenticated: false });
     }
 
+    const cachedUser = userCache.get(sessionKey);
+    if (cachedUser) {
+        return res.json({
+            authenticated: true,
+            user: cachedUser
+        });
+    }
+
     try {
         const data = await makeLastFmRequest('user.getInfo', { sk: sessionKey }, { signed: true });
         const user = data.user;
 
+        const userInfo = {
+            name: user.name,
+            image: user.image
+        };
+
+        userCache.set(sessionKey, userInfo);
+
         res.json({
             authenticated: true,
-            user: {
-                name: user.name,
-                image: user.image
-            }
+            user: userInfo
         });
 
     } catch (error) {
         const errData = sanitizeError(error);
         if (errData.responseData && (errData.responseData.error === 4 || errData.responseData.error === 9 || errData.responseData.error === 14)) {
+            userCache.set(sessionKey, null); // Invalidate cache on auth error
             res.clearCookie('lastfm_session_key', { httpOnly: true, secure: true, sameSite: 'Strict', signed: true });
         }
         res.json({ authenticated: false });
