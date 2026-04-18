@@ -130,10 +130,19 @@ function showScrobbleUI() {
         usernameDisplay.href = `https://www.last.fm/user/${encodeLastFmParam(AppState.user.name)}`;
     }
 
-    if (AppState.user.image && isValidUrl(AppState.user.image)) {
-        userAvatar.src = AppState.user.image;
-        userAvatar.classList.remove('hidden');
-    } else {
+    try {
+        if (AppState.user.image) {
+            const parsedUrl = new URL(AppState.user.image);
+            if (parsedUrl.protocol === 'https:') {
+                userAvatar.src = parsedUrl.href;
+                userAvatar.classList.remove('hidden');
+            } else {
+                throw new Error('Invalid protocol');
+            }
+        } else {
+            throw new Error('No image');
+        }
+    } catch {
         userAvatar.classList.add('hidden');
         userAvatar.src = '';
     }
