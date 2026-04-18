@@ -246,6 +246,7 @@ class SimpleLRUCache {
 }
 
 const albumCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
+const albumSearchCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const mbMbidCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const mbTracklistCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const searchCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
@@ -888,8 +889,14 @@ app.get('/api/search-album', async (req, res) => {
         return res.status(400).json({ error: 'Missing query parameter' });
     }
 
+    const cachedData = albumSearchCache.get(query);
+    if (cachedData !== undefined) {
+        return res.json(cachedData);
+    }
+
     try {
         const data = await makeLastFmRequest('album.search', { album: query });
+        albumSearchCache.set(query, data);
         return res.json(data);
     } catch (error) {
         handleRouteError(res, error, 'Failed to search for albums');
