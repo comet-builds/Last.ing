@@ -248,6 +248,7 @@ class SimpleLRUCache {
 const albumCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const mbMbidCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const mbTracklistCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
+const searchCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 
 // --- Helper Functions ---
 
@@ -307,6 +308,10 @@ const searchMusicBrainzRelease = async (artist, album) => {
 };
 
 const getReleaseTracks = async (mbid, defaultArtist) => {
+    if (!isValidUUID(mbid)) {
+        return [];
+    }
+
     const cacheKey = mbid;
     const cachedData = mbTracklistCache.get(cacheKey);
 
@@ -356,29 +361,23 @@ const getReleaseTracks = async (mbid, defaultArtist) => {
 };
 
 const getMusicBrainzTracklist = async (artist, album, mbid) => {
-    try {
-        let releaseMbid = mbid;
+    let releaseMbid = mbid;
 
-        if (releaseMbid && !isValidUUID(releaseMbid)) {
-            console.warn('Invalid MBID format provided');
-            releaseMbid = null;
-        }
+    if (releaseMbid && !isValidUUID(releaseMbid)) {
+        console.warn('Invalid MBID format provided');
+        releaseMbid = null;
+    }
 
-        // If no MBID, search for the release
-        if (!releaseMbid) {
-            releaseMbid = await searchMusicBrainzRelease(artist, album);
-        }
+    // If no MBID, search for the release
+    if (!releaseMbid) {
+        releaseMbid = await searchMusicBrainzRelease(artist, album);
+    }
 
-        if (!releaseMbid) {
-            return [];
-        }
-
-        return await getReleaseTracks(releaseMbid, artist);
-
-    } catch (error) {
-        console.warn('MusicBrainz Lookup Failed:', error.message);
+    if (!releaseMbid) {
         return [];
     }
+
+    return await getReleaseTracks(releaseMbid, artist);
 };
 
 
@@ -608,8 +607,8 @@ const getDirectTrackAlbum = async (artist, track) => {
         const albumInfo = getAlbumInfoFromTrack(data.track);
         albumCache.set(cacheKey, albumInfo);
         return albumInfo;
-    } catch (e) {
-        console.warn('Direct lookup failed:', e.message);
+    } catch {
+        console.warn('Direct lookup failed');
         albumCache.set(cacheKey, null);
         return null;
     }
@@ -667,8 +666,8 @@ const fetchAlbumsForTracks = async (uniqueTracks) => {
                 const albumInfo = getAlbumInfoFromTrack(data.track);
                 albumCache.set(cacheKey, albumInfo);
                 return albumInfo;
-            } catch (e) {
-                console.warn('Match lookup failed:', e.message);
+            } catch {
+                console.warn('Match lookup failed');
                 albumCache.set(cacheKey, null);
                 return null;
             }
@@ -682,11 +681,25 @@ const fetchAlbumsForTracks = async (uniqueTracks) => {
 };
 
 const getSearchTrackAlbums = async (artist, track) => {
-    const searchData = await makeLastFmRequest('track.search', { track, artist, limit: 5 });
-    const tracks = searchData?.results?.trackmatches?.track || [];
+    const cacheKey = JSON.stringify(['search', artist, track]);
+    const cachedData = searchCache.get(cacheKey);
+    if (cachedData !== undefined) {
+        return cachedData;
+    }
 
-    const uniqueTracks = filterUniqueTracks(tracks, artist, track);
-    return fetchAlbumsForTracks(uniqueTracks);
+    try {
+        const searchData = await makeLastFmRequest('track.search', { track, artist, limit: 5 });
+        const tracks = searchData?.results?.trackmatches?.track || [];
+
+        const uniqueTracks = filterUniqueTracks(tracks, artist, track);
+        const albums = await fetchAlbumsForTracks(uniqueTracks);
+        searchCache.set(cacheKey, albums);
+        return albums;
+    } catch {
+        console.warn('Search lookup failed');
+        searchCache.set(cacheKey, []);
+        return [];
+    }
 };
 
 const deduplicateAlbums = (albums) => {
@@ -780,8 +793,8 @@ app.post('/api/auth', async (req, res) => {
             if (userData.user?.image) {
                 safeSession.image = userData.user.image;
             }
-        } catch (imgError) {
-            console.warn('Failed to fetch user image:', imgError.message);
+        } catch {
+            console.warn('Failed to fetch user image');
         }
 
         res.json({ session: safeSession });
