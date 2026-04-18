@@ -229,12 +229,7 @@ function encodeLastFmParam(param) {
 
 function isValidUrl(url) {
     if (typeof url !== 'string') return false;
-    try {
-        const parsed = new URL(url);
-        return parsed.protocol === 'https:';
-    } catch {
-        return false;
-    }
+    return url.startsWith('https://');
 }
 
 function isLastFmDomain(url) {
