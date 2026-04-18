@@ -361,29 +361,23 @@ const getReleaseTracks = async (mbid, defaultArtist) => {
 };
 
 const getMusicBrainzTracklist = async (artist, album, mbid) => {
-    try {
-        let releaseMbid = mbid;
+    let releaseMbid = mbid;
 
-        if (releaseMbid && !isValidUUID(releaseMbid)) {
-            console.warn('Invalid MBID format provided');
-            releaseMbid = null;
-        }
+    if (releaseMbid && !isValidUUID(releaseMbid)) {
+        console.warn('Invalid MBID format provided');
+        releaseMbid = null;
+    }
 
-        // If no MBID, search for the release
-        if (!releaseMbid) {
-            releaseMbid = await searchMusicBrainzRelease(artist, album);
-        }
+    // If no MBID, search for the release
+    if (!releaseMbid) {
+        releaseMbid = await searchMusicBrainzRelease(artist, album);
+    }
 
-        if (!releaseMbid) {
-            return [];
-        }
-
-        return await getReleaseTracks(releaseMbid, artist);
-
-    } catch (error) {
-        console.warn('MusicBrainz Lookup Failed');
+    if (!releaseMbid) {
         return [];
     }
+
+    return await getReleaseTracks(releaseMbid, artist);
 };
 
 
@@ -613,7 +607,7 @@ const getDirectTrackAlbum = async (artist, track) => {
         const albumInfo = getAlbumInfoFromTrack(data.track);
         albumCache.set(cacheKey, albumInfo);
         return albumInfo;
-    } catch (e) {
+    } catch {
         console.warn('Direct lookup failed');
         albumCache.set(cacheKey, null);
         return null;
@@ -672,7 +666,7 @@ const fetchAlbumsForTracks = async (uniqueTracks) => {
                 const albumInfo = getAlbumInfoFromTrack(data.track);
                 albumCache.set(cacheKey, albumInfo);
                 return albumInfo;
-            } catch (e) {
+            } catch {
                 console.warn('Match lookup failed');
                 albumCache.set(cacheKey, null);
                 return null;
@@ -701,7 +695,7 @@ const getSearchTrackAlbums = async (artist, track) => {
         const albums = await fetchAlbumsForTracks(uniqueTracks);
         searchCache.set(cacheKey, albums);
         return albums;
-    } catch (e) {
+    } catch {
         console.warn('Search lookup failed');
         searchCache.set(cacheKey, []);
         return [];
@@ -799,7 +793,7 @@ app.post('/api/auth', async (req, res) => {
             if (userData.user?.image) {
                 safeSession.image = userData.user.image;
             }
-        } catch (imgError) {
+        } catch {
             console.warn('Failed to fetch user image');
         }
 
