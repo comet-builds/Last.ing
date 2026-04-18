@@ -308,6 +308,10 @@ const searchMusicBrainzRelease = async (artist, album) => {
 };
 
 const getReleaseTracks = async (mbid, defaultArtist) => {
+    if (!isValidUUID(mbid)) {
+        return [];
+    }
+
     const cacheKey = mbid;
     const cachedData = mbTracklistCache.get(cacheKey);
 
@@ -377,7 +381,7 @@ const getMusicBrainzTracklist = async (artist, album, mbid) => {
         return await getReleaseTracks(releaseMbid, artist);
 
     } catch (error) {
-        console.warn('MusicBrainz Lookup Failed:', error.message);
+        console.warn('MusicBrainz Lookup Failed');
         return [];
     }
 };
@@ -610,7 +614,7 @@ const getDirectTrackAlbum = async (artist, track) => {
         albumCache.set(cacheKey, albumInfo);
         return albumInfo;
     } catch (e) {
-        console.warn('Direct lookup failed:', e.message);
+        console.warn('Direct lookup failed');
         albumCache.set(cacheKey, null);
         return null;
     }
@@ -669,7 +673,7 @@ const fetchAlbumsForTracks = async (uniqueTracks) => {
                 albumCache.set(cacheKey, albumInfo);
                 return albumInfo;
             } catch (e) {
-                console.warn('Match lookup failed:', e.message);
+                console.warn('Match lookup failed');
                 albumCache.set(cacheKey, null);
                 return null;
             }
@@ -698,7 +702,7 @@ const getSearchTrackAlbums = async (artist, track) => {
         searchCache.set(cacheKey, albums);
         return albums;
     } catch (e) {
-        console.warn('Search lookup failed:', e.message);
+        console.warn('Search lookup failed');
         searchCache.set(cacheKey, []);
         return [];
     }
@@ -796,7 +800,7 @@ app.post('/api/auth', async (req, res) => {
                 safeSession.image = userData.user.image;
             }
         } catch (imgError) {
-            console.warn('Failed to fetch user image:', imgError.message);
+            console.warn('Failed to fetch user image');
         }
 
         res.json({ session: safeSession });
