@@ -248,6 +248,7 @@ class SimpleLRUCache {
 const albumCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const mbMbidCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 const mbTracklistCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
+const searchCache = new SimpleLRUCache(CACHE_SIZE_LIMIT);
 
 // --- Helper Functions ---
 
@@ -682,11 +683,25 @@ const fetchAlbumsForTracks = async (uniqueTracks) => {
 };
 
 const getSearchTrackAlbums = async (artist, track) => {
-    const searchData = await makeLastFmRequest('track.search', { track, artist, limit: 5 });
-    const tracks = searchData?.results?.trackmatches?.track || [];
+    const cacheKey = JSON.stringify(['search', artist, track]);
+    const cachedData = searchCache.get(cacheKey);
+    if (cachedData !== undefined) {
+        return cachedData;
+    }
 
-    const uniqueTracks = filterUniqueTracks(tracks, artist, track);
-    return fetchAlbumsForTracks(uniqueTracks);
+    try {
+        const searchData = await makeLastFmRequest('track.search', { track, artist, limit: 5 });
+        const tracks = searchData?.results?.trackmatches?.track || [];
+
+        const uniqueTracks = filterUniqueTracks(tracks, artist, track);
+        const albums = await fetchAlbumsForTracks(uniqueTracks);
+        searchCache.set(cacheKey, albums);
+        return albums;
+    } catch (e) {
+        console.warn('Search lookup failed:', e.message);
+        searchCache.set(cacheKey, []);
+        return [];
+    }
 };
 
 const deduplicateAlbums = (albums) => {
