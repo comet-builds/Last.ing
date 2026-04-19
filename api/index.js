@@ -25,13 +25,13 @@ const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 
 const signParams = (params) => {
     const signatureString = Object.keys(params)
-        .sort((a, b) => {
-            if (a < b) return -1;
-            if (a > b) return 1;
-            return 0;
-        })
-        .filter(key => key !== 'format' && key !== 'callback')
-        .map(key => key + params[key])
+        .sort()
+        .reduce((acc, key) => {
+            if (key !== 'format' && key !== 'callback') {
+                acc.push(key + params[key]);
+            }
+            return acc;
+        }, [])
         .join('');
 
     return crypto.createHash('md5').update(signatureString + SHARED_SECRET).digest('hex');
