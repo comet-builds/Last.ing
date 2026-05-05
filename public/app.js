@@ -117,9 +117,16 @@ listenBtn.addEventListener('click', async () => {
         mediaRecorder.addEventListener('stop', async () => {
             listenBtn.classList.remove('listen-active');
             stream.getTracks().forEach(track => track.stop());
+
+            const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+
+            if (audioBlob.size < 10000) {
+                showStatus('Microphone is busy. Close background apps and try again.', 'error');
+                return;
+            }
+
             showStatus('Identifying…', 'success');
 
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             const formData = new FormData();
             formData.append('audio', audioBlob, 'sample.webm');
 
