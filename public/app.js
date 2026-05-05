@@ -150,12 +150,12 @@ listenBtn.addEventListener('click', async () => {
 
         mediaRecorder.start();
 
-        // Record for 5 seconds
+        // Record for 10 seconds
         setTimeout(() => {
             if (mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
             }
-        }, 5000);
+        }, 10000);
 
     } catch (error) {
         console.error('Microphone error:', error);
