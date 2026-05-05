@@ -103,7 +103,7 @@ listenBtn.addEventListener('click', async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         listenBtn.classList.add('listen-active');
-        showStatus('Listening...', 'success');
+        showStatus('Listening…', 'success');
 
         const mediaRecorder = new MediaRecorder(stream);
         const audioChunks = [];
@@ -117,7 +117,7 @@ listenBtn.addEventListener('click', async () => {
         mediaRecorder.addEventListener('stop', async () => {
             listenBtn.classList.remove('listen-active');
             stream.getTracks().forEach(track => track.stop());
-            showStatus('Identifying...', 'success');
+            showStatus('Identifying…', 'success');
 
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             const formData = new FormData();
