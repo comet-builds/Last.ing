@@ -1052,7 +1052,7 @@ app.post('/api/recognize', upload.single('audio'), async (req, res) => {
 
         const data = response.data;
 
-        if (data.status && data.status.code === 0 && data.metadata && data.metadata.music && data.metadata.music.length > 0) {
+        if (data.status?.code === 0 && data.metadata?.music?.length > 0) {
             const trackInfo = data.metadata.music[0];
             const artist = trackInfo.artists && trackInfo.artists.length > 0 ? trackInfo.artists[0].name : '';
             const track = trackInfo.title || '';
