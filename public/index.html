@@ -80,10 +80,15 @@
 
                     <div class="form-group">
                         <label for="track">Track</label>
-                        <div class="input-wrapper">
-                            <input type="text" id="track" name="track" required placeholder="e.g. Time">
-                            <button type="button" id="pin-track" class="pin-btn" aria-label="Pin Track">
-                                <svg viewBox="0 0 24 24"><use href="assets/icons/sprite.svg#icon-pin"></use></svg>
+                        <div class="flex-group">
+                            <div class="input-wrapper flex-1">
+                                <input type="text" id="track" name="track" required placeholder="e.g. Time">
+                                <button type="button" id="pin-track" class="pin-btn" aria-label="Pin Track">
+                                    <svg viewBox="0 0 24 24"><use href="assets/icons/sprite.svg#icon-pin"></use></svg>
+                                </button>
+                            </div>
+                            <button type="button" id="listen-btn" class="btn secondary small-btn icon-btn" title="Identify from Microphone" aria-label="Listen">
+                                <svg width="16" height="16"><use href="assets/icons/sprite.svg#icon-mic"></use></svg>
                             </button>
                         </div>
                     </div>
