@@ -6,6 +6,8 @@ const https = require('node:https');
 const axios = require('axios');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
+const FormData = require('form-data');
 
 if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
@@ -1000,6 +1002,70 @@ app.get('/api/get-recent-tracks', async (req, res) => {
     }
 });
 
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10 MB limit
+    }
+});
+
+app.post('/api/recognize', upload.single('audio'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No audio file provided' });
+        }
+
+        const host = process.env.ACRCLOUD_HOST || 'identify-us-west-2.acrcloud.com';
+        const accessKey = process.env.ACRCLOUD_ACCESS_KEY;
+        const accessSecret = process.env.ACRCLOUD_ACCESS_SECRET;
+
+        if (!accessKey || !accessSecret) {
+            return res.status(500).json({ error: 'ACRCloud credentials are not configured on the server.' });
+        }
+
+        const endpoint = '/v1/identify';
+        const signatureVersion = '1';
+        const dataType = 'audio';
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+
+        const stringToSign = ['POST', endpoint, accessKey, dataType, signatureVersion, timestamp].join('\n');
+
+        const signature = crypto
+            .createHmac('sha1', accessSecret)
+            .update(Buffer.from(stringToSign, 'utf-8'))
+            .digest()
+            .toString('base64');
+
+        const formData = new FormData();
+        formData.append('sample', req.file.buffer, { filename: 'sample.webm', contentType: req.file.mimetype });
+        formData.append('access_key', accessKey);
+        formData.append('data_type', dataType);
+        formData.append('signature_version', signatureVersion);
+        formData.append('signature', signature);
+        formData.append('sample_bytes', req.file.size);
+        formData.append('timestamp', timestamp);
+
+        const response = await axios.post(`https://${host}${endpoint}`, formData, {
+            headers: formData.getHeaders()
+        });
+
+        const data = response.data;
+
+        if (data.status && data.status.code === 0 && data.metadata && data.metadata.music && data.metadata.music.length > 0) {
+            const trackInfo = data.metadata.music[0];
+            const artist = trackInfo.artists && trackInfo.artists.length > 0 ? trackInfo.artists[0].name : '';
+            const track = trackInfo.title || '';
+
+            return res.json({ artist, track });
+        } else {
+            return res.status(404).json({ error: 'Could not identify the audio.', details: data.status ? data.status.msg : 'Unknown error' });
+        }
+    } catch (error) {
+        console.error('ACRCloud error:', error.message);
+        res.status(500).json({ error: 'Failed to communicate with the recognition service.' });
+    }
+});
 
 app.get('/api/health', (req, res) => {
     res.send('Last.ing Backend is running.');

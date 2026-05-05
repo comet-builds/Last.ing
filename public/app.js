@@ -41,6 +41,8 @@ const pinTrackBtn = document.getElementById('pin-track');
 const pinAlbumBtn = document.getElementById('pin-album');
 const pinAlbumArtistBtn = document.getElementById('pin-album-artist');
 
+const listenBtn = document.getElementById('listen-btn');
+
 const fixPastSection = document.getElementById('fix-past-section');
 const reloadHistoryBtn = document.getElementById('reload-history-btn');
 const historyList = document.getElementById('history-list');
@@ -90,6 +92,77 @@ const AppState = {
 const HISTORY_LIMIT = 50;
 const DUPLICATE_WINDOW_SECONDS = 300;
 const DEFAULT_TRACK_DURATION = 180;
+
+// --- Audio Recognition ---
+
+listenBtn.addEventListener('click', async () => {
+    if (listenBtn.classList.contains('listen-active')) {
+        return; // Already listening
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        listenBtn.classList.add('listen-active');
+        showStatus('Listening...', 'success');
+
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks = [];
+
+        mediaRecorder.addEventListener('dataavailable', event => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        });
+
+        mediaRecorder.addEventListener('stop', async () => {
+            listenBtn.classList.remove('listen-active');
+            stream.getTracks().forEach(track => track.stop());
+            showStatus('Identifying...', 'success');
+
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'sample.webm');
+
+            try {
+                const response = await fetch(`${CONFIG.BACKEND_URL}/recognize`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || data.details || 'Failed to identify audio');
+                }
+
+                if (data.artist && data.track) {
+                    artistInput.value = data.artist;
+                    trackInput.value = data.track;
+                    showStatus(`Identified: ${data.artist} - ${data.track}`, 'success');
+                } else {
+                    showStatus('Could not identify the song.', 'error');
+                }
+            } catch (error) {
+                console.error('Recognition error:', error);
+                showStatus(error.message, 'error');
+            }
+        });
+
+        mediaRecorder.start();
+
+        // Record for 10 seconds
+        setTimeout(() => {
+            if (mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        }, 10000);
+
+    } catch (error) {
+        console.error('Microphone error:', error);
+        showStatus('Microphone access denied or unavailable.', 'error');
+        listenBtn.classList.remove('listen-active');
+    }
+});
 
 // --- Auth Functions ---
 
