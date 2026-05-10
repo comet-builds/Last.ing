@@ -1064,11 +1064,9 @@ function formatLocalTime(timestamp, tzOffsetSeconds) {
     const m = Math.floor((secondsInDay % 3600) / 60);
     const s = secondsInDay % 60;
 
-    const hours = h < 10 ? '0' + h : '' + h;
-    const minutes = m < 10 ? '0' + m : '' + m;
-    const seconds = s < 10 ? '0' + s : '' + s;
+    const pad = (n) => (n < 10 ? '0' + n : n);
 
-    return `${hours}:${minutes}:${seconds}`;
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 function updateTrackTimestamps() {
@@ -1097,7 +1095,10 @@ function updateTrackTimestamps() {
 
         const span = track.timestampSpan;
         if (span) {
-            span.textContent = formatLocalTime(currentStart, tzOffsetSeconds);
+            const formattedTime = formatLocalTime(currentStart, tzOffsetSeconds);
+            if (span.textContent !== formattedTime) {
+                span.textContent = formattedTime;
+            }
         }
 
         if (i > 0) {
