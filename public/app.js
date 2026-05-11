@@ -656,41 +656,59 @@ if (findAlbumBtn) {
     });
 }
 
+function createAlbumCard(album, onClick) {
+    const imageUrls = getSortedImageUrls(album.image);
+
+    const card = document.createElement('div');
+    card.className = 'album-card';
+
+    const img = document.createElement('img');
+    img.alt = album.name;
+    img.className = 'album-cover';
+    const coverEl = setImageWithFallback(img, imageUrls);
+
+    const info = document.createElement('div');
+    info.className = 'album-info';
+
+    const nameStr = document.createElement('strong');
+    nameStr.textContent = album.name;
+
+    const artistStr = document.createElement('span');
+    artistStr.textContent = album.artist;
+
+    info.appendChild(nameStr);
+    info.appendChild(artistStr);
+
+    card.appendChild(coverEl);
+    card.appendChild(info);
+
+    if (onClick) {
+        card.addEventListener('click', () => onClick(album));
+    }
+
+    return card;
+}
+
 function renderTrackAlbumResults(albums) {
-    trackAlbumResults.innerHTML = '';
+    trackAlbumResults.replaceChildren();
+
+    if (!albums || albums.length === 0) {
+        const noResults = document.createElement('p');
+        noResults.className = 'no-results';
+        noResults.textContent = 'No albums found for this track.';
+        trackAlbumResults.appendChild(noResults);
+        return;
+    }
+
     const fragment = document.createDocumentFragment();
 
     albums.forEach(album => {
-        const imageUrls = getSortedImageUrls(album.image);
-
-        const card = document.createElement('div');
-        card.className = 'album-card';
-
-        const img = document.createElement('img');
-        img.className = 'album-cover';
-        const coverEl = setImageWithFallback(img, imageUrls);
-
-        const info = document.createElement('div');
-        info.className = 'album-info';
-
-        const nameStr = document.createElement('strong');
-        nameStr.textContent = album.name;
-
-        const artistStr = document.createElement('span');
-        artistStr.textContent = album.artist;
-
-        info.appendChild(nameStr);
-        info.appendChild(artistStr);
-
-        card.appendChild(coverEl);
-        card.appendChild(info);
-
-        card.addEventListener('click', () => {
-            albumInput.value = album.name;
-            if (album.artist) {
-                albumArtistInput.value = album.artist;
+        const card = createAlbumCard(album, (selectedAlbum) => {
+            albumInput.value = selectedAlbum.name;
+            if (selectedAlbum.artist) {
+                albumArtistInput.value = selectedAlbum.artist;
                 if (vaBtn) {
-                     if (album.artist === 'Various Artists') {
+                     if (selectedAlbum.artist === 'Various Artists') {
                         vaBtn.classList.add('active');
                      } else {
                         vaBtn.classList.remove('active');
@@ -699,7 +717,7 @@ function renderTrackAlbumResults(albums) {
             }
 
             trackAlbumResults.classList.add('hidden');
-            trackAlbumResults.innerHTML = '';
+            trackAlbumResults.replaceChildren();
         });
 
         fragment.appendChild(card);
@@ -758,35 +776,20 @@ albumSearchInput.addEventListener('keydown', (e) => {
 });
 
 function renderAlbumResults(albums) {
-    albumResults.innerHTML = '';
+    albumResults.replaceChildren();
+
+    if (!albums || albums.length === 0) {
+        const noResults = document.createElement('p');
+        noResults.className = 'no-results';
+        noResults.textContent = 'No albums found.';
+        albumResults.appendChild(noResults);
+        return;
+    }
+
     const fragment = document.createDocumentFragment();
 
     albums.forEach(album => {
-        const imageUrls = getSortedImageUrls(album.image);
-
-        const card = document.createElement('div');
-        card.className = 'album-card';
-
-        const img = document.createElement('img');
-        img.alt = album.name;
-        img.className = 'album-cover';
-        const coverEl = setImageWithFallback(img, imageUrls);
-
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'album-info';
-
-        const strong = document.createElement('strong');
-        strong.textContent = album.name;
-
-        const span = document.createElement('span');
-        span.textContent = album.artist;
-
-        infoDiv.appendChild(strong);
-        infoDiv.appendChild(span);
-        card.appendChild(coverEl);
-        card.appendChild(infoDiv);
-
-        card.addEventListener('click', () => selectAlbum(album));
+        const card = createAlbumCard(album, selectAlbum);
         fragment.appendChild(card);
     });
 
