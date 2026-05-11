@@ -343,6 +343,11 @@ function updateUserSession(name, images) {
     }
 }
 
+function setElementImage(element, images, preferences) {
+    const imageUrls = getSortedImageUrls(images, preferences);
+    return setImageWithFallback(element, imageUrls);
+}
+
 function getSortedImageUrls(images, preferences = ['large', 'extralarge', 'medium', 'small']) {
     if (!images || !Array.isArray(images)) return [];
 
@@ -657,15 +662,13 @@ if (findAlbumBtn) {
 }
 
 function createAlbumCard(album, onClick) {
-    const imageUrls = getSortedImageUrls(album.image);
-
     const card = document.createElement('div');
     card.className = 'album-card';
 
     const img = document.createElement('img');
     img.alt = album.name;
     img.className = 'album-cover';
-    const coverEl = setImageWithFallback(img, imageUrls);
+    const coverEl = setElementImage(img, album.image);
 
     const info = document.createElement('div');
     info.className = 'album-info';
@@ -882,10 +885,9 @@ function updateAlbumDetails(albumInfo) {
         albumLinkDisplay.href = `https://www.last.fm/music/${encodeLastFmParam(albumInfo.artist)}/${encodeLastFmParam(albumInfo.name)}`;
     }
 
-    const imageUrls = getSortedImageUrls(albumInfo.image);
     const currentCover = document.getElementById('selected-album-cover');
     if (currentCover) {
-        setImageWithFallback(currentCover, imageUrls);
+        setElementImage(currentCover, albumInfo.image);
     }
 }
 
@@ -1356,13 +1358,11 @@ function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
 }
 
 function createHistoryCover(track) {
-    const imageUrls = getSortedImageUrls(track.image);
-
     const coverImg = document.createElement('img');
     coverImg.className = 'history-cover';
     coverImg.alt = track.album?.['#text'] || 'Album Cover';
 
-    return setImageWithFallback(coverImg, imageUrls);
+    return setElementImage(coverImg, track.image);
 }
 
 function createHistoryInfo(track) {
