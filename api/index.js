@@ -26,15 +26,15 @@ const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toStri
 const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 
 const signParams = (params) => {
-    const signatureString = Object.keys(params)
-        .sort((a, b) => {
-            if (a < b) return -1;
-            if (a > b) return 1;
-            return 0;
-        })
-        .filter(key => key !== 'format' && key !== 'callback')
-        .map(key => key + params[key])
-        .join('');
+    let signatureString = '';
+    const keys = Object.keys(params).sort();
+
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        if (key !== 'format' && key !== 'callback') {
+            signatureString += key + params[key];
+        }
+    }
 
     return crypto.createHash('md5').update(signatureString + SHARED_SECRET).digest('hex');
 };
