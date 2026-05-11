@@ -103,7 +103,7 @@ app.use(helmet({
 app.use(compression());
 
 
-app.use('/api/2.0/', (req, res) => {
+app.use('/api/2.0/', express.raw({ type: '*/*', limit: MAX_BODY_SIZE }), (req, res) => {
     const targetUrl = new URL(API_ROOT);
     const isPost = req.method === 'POST';
 
@@ -155,53 +155,26 @@ app.use('/api/2.0/', (req, res) => {
 
     if (isPost) {
         const contentLength = req.headers['content-length'];
-        const hasBodyContent = contentLength && contentLength !== '0';
         const isChunked = req.headers['transfer-encoding'] === 'chunked';
+        const hasBodyContent = contentLength && contentLength !== '0';
 
         if (hasBodyContent || isChunked) {
-            if (contentLength && Number.parseInt(contentLength, 10) > MAX_BODY_SIZE) {
-                return res.status(413).json({ error: 'Payload Too Large' });
-            }
-
             const contentType = req.headers['content-type'] || '';
             if (!contentType.includes('application/x-www-form-urlencoded')) {
                 return res.status(415).json({ error: 'Unsupported Media Type' });
             }
         }
-
-        const chunks = [];
-        let accumulatedSize = 0;
-
-        const onData = (chunk) => {
-            accumulatedSize += chunk.length;
-            if (accumulatedSize > MAX_BODY_SIZE) {
-                req.removeListener('data', onData);
-                req.removeListener('end', onEnd);
-                req.destroy();
-                if (!res.headersSent) {
-                    res.status(413).json({ error: 'Payload Too Large' });
-                }
-                return;
-            }
-            chunks.push(chunk);
-        };
-
-        const onEnd = () => {
-            processRequest(Buffer.concat(chunks));
-        };
-
-        const onError = () => {
-            if (!res.headersSent) {
-                res.status(500).end();
-            }
-        };
-
-        req.on('data', onData);
-        req.on('end', onEnd);
-        req.on('error', onError);
+        processRequest(Buffer.isBuffer(req.body) ? req.body : null);
     } else {
         processRequest(null);
     }
+});
+
+app.use('/api/2.0/', (err, req, res, next) => {
+    if (err && err.status === 413) {
+        return res.status(413).json({ error: 'Payload Too Large' });
+    }
+    next(err);
 });
 
 app.use(express.json({ limit: '256kb' }));
