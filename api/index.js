@@ -709,14 +709,9 @@ const getSearchTrackAlbums = async (artist, track) => {
 const deduplicateAlbums = (albums) => {
     const uniqueAlbums = [];
     const seen = new Map();
-    const lowerCache = new Map();
 
     for (const album of albums) {
-        let nameLower = lowerCache.get(album.name);
-        if (nameLower === undefined) {
-            nameLower = album.name.toLowerCase();
-            lowerCache.set(album.name, nameLower);
-        }
+        const nameLower = album.name.toLowerCase();
 
         let artistSet = seen.get(nameLower);
         if (!artistSet) {
@@ -724,11 +719,7 @@ const deduplicateAlbums = (albums) => {
             seen.set(nameLower, artistSet);
         }
 
-        let artistLower = lowerCache.get(album.artist);
-        if (artistLower === undefined) {
-            artistLower = album.artist.toLowerCase();
-            lowerCache.set(album.artist, artistLower);
-        }
+        const artistLower = album.artist.toLowerCase();
 
         if (!artistSet.has(artistLower)) {
             artistSet.add(artistLower);
