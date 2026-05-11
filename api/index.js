@@ -413,8 +413,7 @@ const executeLastFmRequest = async (httpMethod, requestParams) => {
     let response;
 
     if (httpMethod === 'POST') {
-        const postData = new URLSearchParams();
-        Object.keys(requestParams).forEach(key => postData.append(key, requestParams[key]));
+        const postData = new URLSearchParams(requestParams);
         response = await apiClient.post(API_ROOT, postData, {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
         });
