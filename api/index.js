@@ -22,7 +22,7 @@ const MUSICBRAINZ_USER_AGENT = 'Last.ing/1.0 ( https://github.com/comet-builds/L
 const CACHE_SIZE_LIMIT = 500;
 const MAX_STRING_LENGTH = 500;
 const MAX_BODY_SIZE = 256 * 1024; // 256KB
-const COOKIE_SECRET = process.env.COOKIE_SECRET || process.env.LASTFM_SHARED_SECRET;
+const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex');
 const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 
 const signParams = (params) => {
