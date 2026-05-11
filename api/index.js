@@ -284,20 +284,8 @@ const searchMusicBrainzRelease = async (artist, album) => {
     return null;
 };
 
-const getReleaseTracks = async (mbid, defaultArtist) => {
-    if (!isValidUUID(mbid)) {
-        return [];
-    }
-
-    const cacheKey = mbid;
-    const cachedData = mbTracklistCache.get(cacheKey);
-
-    if (cachedData !== undefined) {
-        return cachedData;
-    }
-
+const fetchReleaseMedia = async (mbid) => {
     const lookupUrl = `${MUSICBRAINZ_API_ROOT}release/${encodeURIComponent(mbid)}`;
-
     const lookupResponse = await apiClient.get(lookupUrl, {
         params: {
             inc: 'recordings+artist-credits',
@@ -307,14 +295,10 @@ const getReleaseTracks = async (mbid, defaultArtist) => {
             'User-Agent': MUSICBRAINZ_USER_AGENT
         }
     });
+    return lookupResponse.data.media;
+};
 
-    const media = lookupResponse.data.media;
-    if (!media || media.length === 0) {
-        // Cache negative result
-        mbTracklistCache.set(cacheKey, []);
-        return [];
-    }
-
+const parseReleaseTracks = (media, defaultArtist) => {
     const tracks = [];
     let rank = 1;
 
@@ -332,6 +316,31 @@ const getReleaseTracks = async (mbid, defaultArtist) => {
             });
         }
     });
+
+    return tracks;
+};
+
+const getReleaseTracks = async (mbid, defaultArtist) => {
+    if (!isValidUUID(mbid)) {
+        return [];
+    }
+
+    const cacheKey = mbid;
+    const cachedData = mbTracklistCache.get(cacheKey);
+
+    if (cachedData !== undefined) {
+        return cachedData;
+    }
+
+    const media = await fetchReleaseMedia(mbid);
+
+    if (!media || media.length === 0) {
+        // Cache negative result
+        mbTracklistCache.set(cacheKey, []);
+        return [];
+    }
+
+    const tracks = parseReleaseTracks(media, defaultArtist);
 
     mbTracklistCache.set(cacheKey, tracks);
     return tracks;
