@@ -171,7 +171,7 @@ app.use('/api/2.0/', express.raw({ type: '*/*', limit: MAX_BODY_SIZE }), (req, r
 });
 
 app.use('/api/2.0/', (err, req, res, next) => {
-    if (err && err.status === 413) {
+    if (err?.status === 413) {
         return res.status(413).json({ error: 'Payload Too Large' });
     }
     next(err);
