@@ -163,7 +163,7 @@ listenBtn.addEventListener('click', async () => {
             }
         }, 10000);
 
-    } catch (error) {
+    } catch {
         showStatus('Microphone access denied or unavailable.', 'error');
         listenBtn.classList.remove('listen-active');
     }
@@ -185,7 +185,7 @@ async function checkAuthStatus(showSpinner = true) {
         } else {
             showAuthUI();
         }
-    } catch (error) {
+    } catch {
         showAuthUI();
     } finally {
         if (showSpinner) toggleSpinner(false);
@@ -284,7 +284,7 @@ async function handleAuthCallback(token) {
 logoutBtn.addEventListener('click', async () => {
     try {
         await fetch(`${CONFIG.BACKEND_URL}/logout`, { method: 'POST' });
-    } catch (error) {
+    } catch {
     }
 
     localStorage.removeItem(CONFIG.STORAGE_KEYS.USERNAME);
