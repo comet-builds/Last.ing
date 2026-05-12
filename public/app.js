@@ -164,7 +164,6 @@ listenBtn.addEventListener('click', async () => {
         }, 10000);
 
     } catch (error) {
-        console.error('Microphone error:', error);
         showStatus('Microphone access denied or unavailable.', 'error');
         listenBtn.classList.remove('listen-active');
     }
@@ -187,7 +186,6 @@ async function checkAuthStatus(showSpinner = true) {
             showAuthUI();
         }
     } catch (error) {
-        console.error('Check Auth Error:', error);
         showAuthUI();
     } finally {
         if (showSpinner) toggleSpinner(false);
@@ -246,7 +244,6 @@ loginBtn.addEventListener('click', async () => {
             throw new Error('No valid login URL returned from server');
         }
     } catch (error) {
-        console.error('Login Error:', error);
         showStatus(`Login Failed: ${error.message}`, 'error');
     } finally {
         toggleSpinner(false);
@@ -277,7 +274,6 @@ async function handleAuthCallback(token) {
         showScrobbleUI();
 
     } catch (error) {
-        console.error('Auth Error:', error);
         showStatus(`Login Failed: ${error.message}`, 'error');
         showAuthUI();
     } finally {
@@ -289,7 +285,6 @@ logoutBtn.addEventListener('click', async () => {
     try {
         await fetch(`${CONFIG.BACKEND_URL}/logout`, { method: 'POST' });
     } catch (error) {
-        console.error('Logout Error:', error);
     }
 
     localStorage.removeItem(CONFIG.STORAGE_KEYS.USERNAME);
@@ -570,7 +565,6 @@ async function submitScrobble(payload) {
         return true;
 
     } catch (error) {
-        console.error('Scrobble Error:', error);
         showStatus(`Error: ${error.message}`, 'error');
         return false;
     } finally {
@@ -651,7 +645,6 @@ if (findAlbumBtn) {
             renderTrackAlbumResults(albums);
 
         } catch (error) {
-            console.error('Lookup Error:', error);
             showStatus(`Error: ${error.message}`, 'error');
             trackAlbumResults.classList.add('hidden');
         } finally {
@@ -765,7 +758,6 @@ async function performAlbumSearch() {
         albumResults.dataset.query = query;
 
     } catch (error) {
-        console.error('Search Error:', error);
         showStatus(`Error: ${error.message}`, 'error');
     } finally {
         toggleSpinner(false);
@@ -836,7 +828,6 @@ async function selectAlbum(album) {
         prepareVerificationView(albumInfo);
 
     } catch (error) {
-        console.error('Album Info Error:', error);
         showStatus(`Error: ${error.message}`, 'error');
     } finally {
         toggleSpinner(false);
@@ -1230,7 +1221,6 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
         showStatus('Scrobbled', 'success');
 
     } catch (error) {
-        console.error('Batch Scrobble Error:', error);
         showStatus(`Error: ${error.message}`, 'error');
     } finally {
         toggleSpinner(false);
@@ -1309,7 +1299,6 @@ async function loadHistory(append = false) {
         if (append) globalThis.scrollTo(0, scrollPos);
 
     } catch (error) {
-        console.error('History Error:', error);
         showStatus(`Error: ${error.message}`, 'error');
     } finally {
         toggleSpinner(false);
@@ -1674,7 +1663,6 @@ if (token) {
 if ('serviceWorker' in navigator) {
     globalThis.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch((error) => {
-            console.error('Service Worker registration failed:', error);
         });
     });
 }
