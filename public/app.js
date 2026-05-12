@@ -171,8 +171,7 @@ listenBtn.addEventListener('click', async () => {
 
 // --- Auth Functions ---
 
-async function checkAuthStatus(showSpinner = true) {
-    if (showSpinner) toggleSpinner(true);
+const doCheckAuth = async () => {
     try {
         const response = await fetch(`${CONFIG.BACKEND_URL}/check-auth`);
         const data = await response.json();
@@ -187,8 +186,16 @@ async function checkAuthStatus(showSpinner = true) {
         }
     } catch {
         showAuthUI();
-    } finally {
-        if (showSpinner) toggleSpinner(false);
+    }
+};
+
+const doCheckAuthWithSpinner = withSpinner(doCheckAuth);
+
+async function checkAuthStatus(showSpinner = true) {
+    if (showSpinner) {
+        return await doCheckAuthWithSpinner();
+    } else {
+        return await doCheckAuth();
     }
 }
 
@@ -227,9 +234,7 @@ function showScrobbleUI() {
     renderStateFromUrl();
 }
 
-loginBtn.addEventListener('click', async () => {
-    toggleSpinner(true);
-
+loginBtn.addEventListener('click', withSpinner(async () => {
     try {
         const response = await fetch(`${CONFIG.BACKEND_URL}/login-url`);
         const data = await response.json();
@@ -245,14 +250,10 @@ loginBtn.addEventListener('click', async () => {
         }
     } catch (error) {
         showStatus(`Login Failed: ${error.message}`, 'error');
-    } finally {
-        toggleSpinner(false);
     }
-});
+}));
 
-async function handleAuthCallback(token) {
-    toggleSpinner(true);
-
+const handleAuthCallback = withSpinner(async (token) => {
     try {
         const response = await fetch(`${CONFIG.BACKEND_URL}/auth`, {
             method: 'POST',
@@ -276,10 +277,8 @@ async function handleAuthCallback(token) {
     } catch (error) {
         showStatus(`Login Failed: ${error.message}`, 'error');
         showAuthUI();
-    } finally {
-        toggleSpinner(false);
     }
-}
+});
 
 logoutBtn.addEventListener('click', async () => {
     try {
@@ -456,6 +455,17 @@ function toggleSpinner(show) {
     }
 }
 
+function withSpinner(fn) {
+    return async (...args) => {
+        toggleSpinner(true);
+        try {
+            return await fn(...args);
+        } finally {
+            toggleSpinner(false);
+        }
+    };
+}
+
 function updateDateTimeInputs(dateObj, dateEl, timeEl) {
     if (!dateObj) return;
 
@@ -545,9 +555,7 @@ setupPin(pinAlbumArtistBtn);
 
 // --- Track Scrobble Logic ---
 
-async function submitScrobble(payload) {
-    toggleSpinner(true);
-
+const submitScrobble = withSpinner(async (payload) => {
     try {
         const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble`, {
             method: 'POST',
@@ -567,10 +575,8 @@ async function submitScrobble(payload) {
     } catch (error) {
         showStatus(`Error: ${error.message}`, 'error');
         return false;
-    } finally {
-        toggleSpinner(false);
     }
-}
+});
 
 scrobbleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -612,6 +618,34 @@ scrobbleForm.addEventListener('submit', async (e) => {
 const findAlbumBtn = document.getElementById('find-album-btn');
 const trackAlbumResults = document.getElementById('track-album-results');
 
+const fetchTrackAlbums = withSpinner(async (artist, track) => {
+    trackAlbumResults.innerHTML = '';
+    trackAlbumResults.classList.remove('hidden');
+
+    try {
+        const response = await fetch(`${CONFIG.BACKEND_URL}/lookup-track-albums?artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(track)}`);
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.message || 'Lookup failed');
+        }
+
+        const albums = data.albums || [];
+
+        if (albums.length === 0) {
+            showStatus('No suitable albums found', 'error');
+            trackAlbumResults.classList.add('hidden');
+            return;
+        }
+
+        renderTrackAlbumResults(albums);
+
+    } catch (error) {
+        showStatus(`Error: ${error.message}`, 'error');
+        trackAlbumResults.classList.add('hidden');
+    }
+});
+
 if (findAlbumBtn) {
     findAlbumBtn.addEventListener('click', async () => {
         const artist = artistInput.value.trim();
@@ -622,34 +656,7 @@ if (findAlbumBtn) {
             return;
         }
 
-        toggleSpinner(true);
-        trackAlbumResults.innerHTML = '';
-        trackAlbumResults.classList.remove('hidden');
-
-        try {
-            const response = await fetch(`${CONFIG.BACKEND_URL}/lookup-track-albums?artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(track)}`);
-            const data = await response.json();
-
-            if (data.error) {
-                throw new Error(data.message || 'Lookup failed');
-            }
-
-            const albums = data.albums || [];
-
-            if (albums.length === 0) {
-                showStatus('No suitable albums found', 'error');
-                trackAlbumResults.classList.add('hidden');
-                return;
-            }
-
-            renderTrackAlbumResults(albums);
-
-        } catch (error) {
-            showStatus(`Error: ${error.message}`, 'error');
-            trackAlbumResults.classList.add('hidden');
-        } finally {
-            toggleSpinner(false);
-        }
+        await fetchTrackAlbums(artist, track);
     });
 }
 
@@ -723,20 +730,7 @@ function renderTrackAlbumResults(albums) {
 
 // --- Album Search Logic ---
 
-async function performAlbumSearch() {
-    const query = albumSearchInput.value.trim();
-    if (!query) {
-        showStatus('Please enter an artist or album name', 'error');
-        return;
-    }
-
-    const currentParams = new URLSearchParams(globalThis.location.search);
-    if (currentParams.get('q') !== query) {
-        updateUrl({ mode: 'album', q: query, artist: null, album: null });
-        return;
-    }
-
-    toggleSpinner(true);
+const fetchAlbumSearch = withSpinner(async (query) => {
     albumResults.innerHTML = '';
 
     try {
@@ -759,9 +753,23 @@ async function performAlbumSearch() {
 
     } catch (error) {
         showStatus(`Error: ${error.message}`, 'error');
-    } finally {
-        toggleSpinner(false);
     }
+});
+
+async function performAlbumSearch() {
+    const query = albumSearchInput.value.trim();
+    if (!query) {
+        showStatus('Please enter an artist or album name', 'error');
+        return;
+    }
+
+    const currentParams = new URLSearchParams(globalThis.location.search);
+    if (currentParams.get('q') !== query) {
+        updateUrl({ mode: 'album', q: query, artist: null, album: null });
+        return;
+    }
+
+    await fetchAlbumSearch(query);
 }
 
 albumSearchBtn.addEventListener('click', performAlbumSearch);
@@ -792,23 +800,7 @@ function renderAlbumResults(albums) {
 
 // --- Album Selection & Verification Logic ---
 
-async function selectAlbum(album) {
-    const currentParams = new URLSearchParams(globalThis.location.search);
-    const urlArtist = currentParams.get('artist');
-    const urlAlbum = currentParams.get('album');
-    const urlQuery = currentParams.get('q');
-
-    if (urlArtist !== album.artist || urlAlbum !== album.name) {
-         updateUrl({
-             mode: 'album',
-             q: urlQuery,
-             artist: album.artist,
-             album: album.name
-         });
-         return;
-    }
-
-    toggleSpinner(true);
+const fetchAndSelectAlbum = withSpinner(async (album) => {
     try {
         let url = `${CONFIG.BACKEND_URL}/get-album-info?`;
         if (album.mbid) {
@@ -829,9 +821,26 @@ async function selectAlbum(album) {
 
     } catch (error) {
         showStatus(`Error: ${error.message}`, 'error');
-    } finally {
-        toggleSpinner(false);
     }
+});
+
+async function selectAlbum(album) {
+    const currentParams = new URLSearchParams(globalThis.location.search);
+    const urlArtist = currentParams.get('artist');
+    const urlAlbum = currentParams.get('album');
+    const urlQuery = currentParams.get('q');
+
+    if (urlArtist !== album.artist || urlAlbum !== album.name) {
+         updateUrl({
+             mode: 'album',
+             q: urlQuery,
+             artist: album.artist,
+             album: album.name
+         });
+         return;
+    }
+
+    await fetchAndSelectAlbum(album);
 }
 
 function prepareVerificationView(albumInfo) {
@@ -1147,6 +1156,45 @@ if (editAlbumBtn) {
 
 // --- Batch Scrobbling Logic ---
 
+const processBatchScrobble = withSpinner(async (tracksToScrobble) => {
+    try {
+        const concurrencyLimit = 5;
+        const batchSize = 50;
+
+        for (let i = 0; i < tracksToScrobble.length; i += batchSize * concurrencyLimit) {
+            const chunkPromises = [];
+
+            for (let j = 0; j < concurrencyLimit; j++) {
+                const start = i + j * batchSize;
+                if (start >= tracksToScrobble.length) break;
+
+                const batch = tracksToScrobble.slice(start, start + batchSize);
+
+                chunkPromises.push((async (currentBatch) => {
+                    const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble-batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tracks: currentBatch })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) {
+                        throw new Error(data.message || 'Batch scrobble failed');
+                    }
+                    return data;
+                })(batch));
+            }
+
+            await Promise.all(chunkPromises);
+        }
+
+        showStatus('Scrobbled', 'success');
+
+    } catch (error) {
+        showStatus(`Error: ${error.message}`, 'error');
+    }
+});
+
 confirmAlbumScrobbleBtn.addEventListener('click', async () => {
     const endTimestamp = getTimestampFromInputs(albumDateInput, albumTimeInput);
 
@@ -1185,46 +1233,7 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
         return;
     }
 
-    toggleSpinner(true);
-
-    try {
-        const concurrencyLimit = 5;
-        const batchSize = 50;
-
-        for (let i = 0; i < tracksToScrobble.length; i += batchSize * concurrencyLimit) {
-            const chunkPromises = [];
-
-            for (let j = 0; j < concurrencyLimit; j++) {
-                const start = i + j * batchSize;
-                if (start >= tracksToScrobble.length) break;
-
-                const batch = tracksToScrobble.slice(start, start + batchSize);
-
-                chunkPromises.push((async (currentBatch) => {
-                    const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble-batch`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tracks: currentBatch })
-                    });
-
-                    const data = await response.json();
-                    if (data.error) {
-                        throw new Error(data.message || 'Batch scrobble failed');
-                    }
-                    return data;
-                })(batch));
-            }
-
-            await Promise.all(chunkPromises);
-        }
-
-        showStatus('Scrobbled', 'success');
-
-    } catch (error) {
-        showStatus(`Error: ${error.message}`, 'error');
-    } finally {
-        toggleSpinner(false);
-    }
+    await processBatchScrobble(tracksToScrobble);
 });
 
 // --- Fix Past Logic ---
@@ -1276,18 +1285,7 @@ function updateHistoryCache(newTracks, append) {
     }
 }
 
-async function loadHistory(append = false) {
-    if (!AppState.user.name) {
-        showStatus('Please login first', 'error');
-        return;
-    }
-
-    if (!append) {
-        resetHistoryView();
-    }
-
-    toggleSpinner(true);
-
+const fetchAndRenderHistory = withSpinner(async (append) => {
     try {
         const newTracks = await fetchHistoryTracks(AppState.history.page);
 
@@ -1300,9 +1298,20 @@ async function loadHistory(append = false) {
 
     } catch (error) {
         showStatus(`Error: ${error.message}`, 'error');
-    } finally {
-        toggleSpinner(false);
     }
+});
+
+async function loadHistory(append = false) {
+    if (!AppState.user.name) {
+        showStatus('Please login first', 'error');
+        return;
+    }
+
+    if (!append) {
+        resetHistoryView();
+    }
+
+    await fetchAndRenderHistory(append);
 }
 
 
