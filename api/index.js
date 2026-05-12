@@ -604,9 +604,14 @@ const filterUniqueTracks = (tracks, originalArtist, originalTrack) => {
     const originalTrackLower = originalTrack.toLowerCase();
 
     const uniqueTracks = [];
-    const seenTracks = new Set();
+    const seenMbids = new Set();
+    const seenNames = new Map();
 
     for (const t of tracks) {
+        if (t.artist === originalArtist && t.name === originalTrack) {
+            continue;
+        }
+
         const tArtistLower = t.artist.toLowerCase();
         const tNameLower = t.name.toLowerCase();
 
@@ -615,11 +620,22 @@ const filterUniqueTracks = (tracks, originalArtist, originalTrack) => {
         }
 
         const mbid = t.mbid || '';
-        const uniqueKey = mbid ? `mbid:${mbid}` : `name:${tArtistLower}|${tNameLower}`;
 
-        if (!seenTracks.has(uniqueKey)) {
-            seenTracks.add(uniqueKey);
-            uniqueTracks.push(t);
+        if (mbid) {
+            if (!seenMbids.has(mbid)) {
+                seenMbids.add(mbid);
+                uniqueTracks.push(t);
+            }
+        } else {
+            let artistSet = seenNames.get(tArtistLower);
+            if (!artistSet) {
+                artistSet = new Set();
+                seenNames.set(tArtistLower, artistSet);
+            }
+            if (!artistSet.has(tNameLower)) {
+                artistSet.add(tNameLower);
+                uniqueTracks.push(t);
+            }
         }
     }
 
