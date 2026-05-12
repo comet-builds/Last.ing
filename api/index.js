@@ -27,10 +27,9 @@ const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 
 const signParams = (params) => {
     let signatureString = '';
-    const keys = Object.keys(params).sort();
+    const keys = Object.keys(params).sort((a, b) => a.localeCompare(b));
 
-    for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
+    for (const key of keys) {
         if (key !== 'format' && key !== 'callback') {
             signatureString += key + params[key];
         }
@@ -502,6 +501,19 @@ const getAlbumInfoFromTrack = (trackInfo) => {
     return null;
 };
 
+const validateTrackDataTypes = (artist, track, album, albumArtist, indexStr) => {
+    if (!ensureString(artist) || !ensureString(track)) {
+        return { isValid: false, error: `Invalid data types${indexStr}: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
+    }
+    if (album && !ensureString(album)) {
+        return { isValid: false, error: `Invalid data types${indexStr}: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
+    }
+    if (albumArtist && !ensureString(albumArtist)) {
+        return { isValid: false, error: `Invalid data types${indexStr}: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
+    }
+    return { isValid: true };
+};
+
 const validateTrackData = (trackData, index) => {
     const indexStr = index === undefined ? '' : ` at index ${index}`;
 
@@ -515,9 +527,8 @@ const validateTrackData = (trackData, index) => {
         return { isValid: false, error: `Missing required fields${indexStr} (artist, track, timestamp)` };
     }
 
-    if (!ensureString(artist) || !ensureString(track) || (album && !ensureString(album)) || (albumArtist && !ensureString(albumArtist))) {
-        return { isValid: false, error: `Invalid data types${indexStr}: artist, track, album, and albumArtist must be strings under ${MAX_STRING_LENGTH} characters` };
-    }
+    const typeValidation = validateTrackDataTypes(artist, track, album, albumArtist, indexStr);
+    if (!typeValidation.isValid) return typeValidation;
 
     if (typeof timestamp !== 'number' || !Number.isInteger(timestamp)) {
         return { isValid: false, error: `Invalid data type${indexStr}: timestamp must be an integer` };
@@ -998,6 +1009,38 @@ const upload = multer({
     }
 });
 
+const generateACRCloudSignature = (accessSecret, accessKey, endpoint, dataType, signatureVersion, timestamp) => {
+    const stringToSign = ['POST', endpoint, accessKey, dataType, signatureVersion, timestamp].join('\n');
+
+    return crypto
+        .createHmac('sha1', accessSecret)
+        .update(Buffer.from(stringToSign, 'utf-8'))
+        .digest()
+        .toString('base64');
+};
+
+const createACRCloudFormData = (file, accessKey, dataType, signatureVersion, signature, timestamp) => {
+    const formData = new FormData();
+    formData.append('sample', file.buffer, { filename: 'sample.webm', contentType: file.mimetype });
+    formData.append('access_key', accessKey);
+    formData.append('data_type', dataType);
+    formData.append('signature_version', signatureVersion);
+    formData.append('signature', signature);
+    formData.append('sample_bytes', file.size);
+    formData.append('timestamp', timestamp);
+    return formData;
+};
+
+const parseACRCloudResponse = (data) => {
+    if (data.status?.code === 0 && data.metadata?.music?.length > 0) {
+        const trackInfo = data.metadata.music[0];
+        const artist = trackInfo.artists && trackInfo.artists.length > 0 ? trackInfo.artists[0].name : '';
+        const track = trackInfo.title || '';
+        return { success: true, artist, track };
+    }
+    return { success: false, details: data.status ? data.status.msg : 'Unknown error' };
+};
+
 app.post('/api/recognize', upload.single('audio'), async (req, res) => {
     try {
         if (!req.file) {
@@ -1017,37 +1060,19 @@ app.post('/api/recognize', upload.single('audio'), async (req, res) => {
         const dataType = 'audio';
         const timestamp = Math.floor(Date.now() / 1000).toString();
 
-        const stringToSign = ['POST', endpoint, accessKey, dataType, signatureVersion, timestamp].join('\n');
-
-        const signature = crypto
-            .createHmac('sha1', accessSecret)
-            .update(Buffer.from(stringToSign, 'utf-8'))
-            .digest()
-            .toString('base64');
-
-        const formData = new FormData();
-        formData.append('sample', req.file.buffer, { filename: 'sample.webm', contentType: req.file.mimetype });
-        formData.append('access_key', accessKey);
-        formData.append('data_type', dataType);
-        formData.append('signature_version', signatureVersion);
-        formData.append('signature', signature);
-        formData.append('sample_bytes', req.file.size);
-        formData.append('timestamp', timestamp);
+        const signature = generateACRCloudSignature(accessSecret, accessKey, endpoint, dataType, signatureVersion, timestamp);
+        const formData = createACRCloudFormData(req.file, accessKey, dataType, signatureVersion, signature, timestamp);
 
         const response = await axios.post(`https://${host}${endpoint}`, formData, {
             headers: formData.getHeaders()
         });
 
-        const data = response.data;
+        const parsedResponse = parseACRCloudResponse(response.data);
 
-        if (data.status?.code === 0 && data.metadata?.music?.length > 0) {
-            const trackInfo = data.metadata.music[0];
-            const artist = trackInfo.artists && trackInfo.artists.length > 0 ? trackInfo.artists[0].name : '';
-            const track = trackInfo.title || '';
-
-            return res.json({ artist, track });
+        if (parsedResponse.success) {
+            return res.json({ artist: parsedResponse.artist, track: parsedResponse.track });
         } else {
-            return res.status(404).json({ error: 'Could not identify the audio.', details: data.status ? data.status.msg : 'Unknown error' });
+            return res.status(404).json({ error: 'Could not identify the audio.', details: parsedResponse.details });
         }
     } catch (error) {
         console.error('ACRCloud error:', error.message);
