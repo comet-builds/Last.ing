@@ -191,12 +191,12 @@ const doCheckAuth = async () => {
 
 const doCheckAuthWithSpinner = withSpinner(doCheckAuth);
 
-async function checkAuthStatus(showSpinner = true) {
-    if (showSpinner) {
-        return await doCheckAuthWithSpinner();
-    } else {
-        return await doCheckAuth();
-    }
+async function checkAuthStatus() {
+    return await doCheckAuth();
+}
+
+async function checkAuthStatusWithSpinner() {
+    return await doCheckAuthWithSpinner();
 }
 
 function showAuthUI() {
@@ -315,8 +315,22 @@ function isLastFmDomain(url) {
     }
 }
 
+function sanitizeString(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/[<>&"']/g, (match) => {
+        const escapeMap = {
+            '<': '&lt;',
+            '>': '&gt;',
+            '&': '&amp;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+        return escapeMap[match];
+    });
+}
+
 function updateUserSession(name, images) {
-    AppState.user.name = name;
+    AppState.user.name = sanitizeString(name);
     localStorage.setItem(CONFIG.STORAGE_KEYS.USERNAME, AppState.user.name);
 
     AppState.user.image = null;
@@ -1663,10 +1677,10 @@ if (token) {
     await handleAuthCallback(token);
 } else if (AppState.user.name) {
     showScrobbleUI();
-    await checkAuthStatus(false);
+    await checkAuthStatus();
 } else {
     showAuthUI();
-    await checkAuthStatus(false);
+    await checkAuthStatus();
 }
 
 if ('serviceWorker' in navigator) {
