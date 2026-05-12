@@ -660,17 +660,23 @@ const filterUniqueTracks = (tracks, originalArtist, originalTrack) => {
 };
 
 const fetchAlbumsForTracks = async (uniqueTracks) => {
-    const matchAlbums = [];
-    const chunkSize = 2; // Concurrency limit to avoid Last.fm rate limits (5 req/sec)
+    const matchAlbums = new Array(uniqueTracks.length);
+    const concurrency = 2; // Concurrency limit to avoid Last.fm rate limits (5 req/sec)
+    let index = 0;
 
-    for (let i = 0; i < uniqueTracks.length; i += chunkSize) {
-        const chunk = uniqueTracks.slice(i, i + chunkSize);
-        const chunkPromises = chunk.map(async (trackMatch) => {
+    const worker = async () => {
+        while (index < uniqueTracks.length) {
+            const currentIndex = index++;
+            const trackMatch = uniqueTracks[currentIndex];
+
             const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : JSON.stringify(['track', trackMatch.artist, trackMatch.name]);
             const cachedData = albumCache.get(cacheKey);
+
             if (cachedData !== undefined) {
-                return cachedData;
+                matchAlbums[currentIndex] = cachedData;
+                continue;
             }
+
             try {
                 const params = {};
                 if (trackMatch.mbid) {
@@ -683,19 +689,22 @@ const fetchAlbumsForTracks = async (uniqueTracks) => {
                 const data = await makeLastFmRequest('track.getInfo', params);
                 const albumInfo = getAlbumInfoFromTrack(data.track);
                 albumCache.set(cacheKey, albumInfo);
-                return albumInfo;
+                matchAlbums[currentIndex] = albumInfo;
             } catch {
                 console.warn('Match lookup failed');
                 albumCache.set(cacheKey, null);
-                return null;
+                matchAlbums[currentIndex] = null;
             }
-        });
+        }
+    };
 
-        const chunkResults = await Promise.all(chunkPromises);
-        matchAlbums.push(...chunkResults);
+    const workers = [];
+    for (let i = 0; i < Math.min(concurrency, uniqueTracks.length); i++) {
+        workers.push(worker());
     }
 
-    return matchAlbums;
+    await Promise.all(workers);
+    return matchAlbums.filter(album => album !== undefined);
 };
 
 const getSearchTrackAlbums = async (artist, track) => {
