@@ -64,6 +64,7 @@ const editAlbumBtn = document.getElementById('edit-album-btn');
 const albumViewMode = document.getElementById('album-view-mode');
 const albumEditMode = document.getElementById('album-edit-mode');
 const albumDateInput = document.getElementById('album-date');
+const albumDateGroup = albumDateInput ? albumDateInput.closest('.form-group') : null;
 const albumTimeInput = document.getElementById('album-time');
 const albumNowBtn = document.getElementById('album-now-btn');
 const tracklistContainer = document.getElementById('tracklist-container');
@@ -891,8 +892,6 @@ function updateAlbumDetails(albumInfo) {
 }
 
 function handleEmptyAlbum(albumInfo) {
-    const albumDateGroup = document.getElementById('album-date').closest('.form-group');
-
     tracklistContainer.classList.add('hidden');
     confirmAlbumScrobbleBtn.classList.add('hidden');
     if (albumDateGroup) albumDateGroup.classList.add('hidden');
@@ -925,8 +924,6 @@ function handleEmptyAlbum(albumInfo) {
 }
 
 function renderAlbumTracks(trackArray, albumInfo) {
-    const albumDateGroup = document.getElementById('album-date').closest('.form-group');
-
     tracklistContainer.classList.remove('hidden');
     confirmAlbumScrobbleBtn.classList.remove('hidden');
     if (albumDateGroup) albumDateGroup.classList.remove('hidden');
