@@ -610,6 +610,27 @@ const getDirectTrackAlbum = async (artist, track) => {
     }
 };
 
+const isTrackUnique = (t, tArtistLower, tNameLower, seenMbids, seenNames) => {
+    const mbid = t.mbid || '';
+    if (mbid) {
+        if (!seenMbids.has(mbid)) {
+            seenMbids.add(mbid);
+            return true;
+        }
+        return false;
+    }
+    let artistSet = seenNames.get(tArtistLower);
+    if (!artistSet) {
+        artistSet = new Set();
+        seenNames.set(tArtistLower, artistSet);
+    }
+    if (!artistSet.has(tNameLower)) {
+        artistSet.add(tNameLower);
+        return true;
+    }
+    return false;
+};
+
 const filterUniqueTracks = (tracks, originalArtist, originalTrack) => {
     const originalArtistLower = originalArtist.toLowerCase();
     const originalTrackLower = originalTrack.toLowerCase();
@@ -630,23 +651,8 @@ const filterUniqueTracks = (tracks, originalArtist, originalTrack) => {
             continue;
         }
 
-        const mbid = t.mbid || '';
-
-        if (mbid) {
-            if (!seenMbids.has(mbid)) {
-                seenMbids.add(mbid);
-                uniqueTracks.push(t);
-            }
-        } else {
-            let artistSet = seenNames.get(tArtistLower);
-            if (!artistSet) {
-                artistSet = new Set();
-                seenNames.set(tArtistLower, artistSet);
-            }
-            if (!artistSet.has(tNameLower)) {
-                artistSet.add(tNameLower);
-                uniqueTracks.push(t);
-            }
+        if (isTrackUnique(t, tArtistLower, tNameLower, seenMbids, seenNames)) {
+            uniqueTracks.push(t);
         }
     }
 
