@@ -27,7 +27,7 @@ const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
 
 const signParams = (params) => {
     let signatureString = '';
-    const keys = Object.keys(params).sort((a, b) => a.localeCompare(b));
+    const keys = Object.keys(params).sort();
 
     for (const key of keys) {
         if (key !== 'format' && key !== 'callback') {
