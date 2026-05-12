@@ -331,6 +331,10 @@ function sanitizeString(str) {
 }
 
 function updateUserSession(name, images) {
+    if (typeof name !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(name)) {
+        return;
+    }
+
     AppState.user.name = sanitizeString(name);
     localStorage.setItem(CONFIG.STORAGE_KEYS.USERNAME, AppState.user.name);
 
@@ -340,13 +344,20 @@ function updateUserSession(name, images) {
     if (images) {
         const imageUrls = getSortedImageUrls(images, ['small']);
         if (imageUrls.length > 0) {
-            AppState.user.image = imageUrls[0];
+            try {
+                const parsedUrl = new URL(imageUrls[0]);
+                if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+                    AppState.user.image = parsedUrl.href;
 
-            if (AppState.user.image.startsWith('https://lastfm.freetls.fastly.net/i/u/')) {
-                AppState.user.image = AppState.user.image.replace('https://lastfm.freetls.fastly.net/i/u/34', 'https://lastfm.freetls.fastly.net/i/u/avatar42');
+                    if (AppState.user.image.startsWith('https://lastfm.freetls.fastly.net/i/u/')) {
+                        AppState.user.image = AppState.user.image.replace('https://lastfm.freetls.fastly.net/i/u/34', 'https://lastfm.freetls.fastly.net/i/u/avatar42');
+                    }
+
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.USER_IMAGE, AppState.user.image);
+                }
+            } catch {
+                // Invalid URL format
             }
-
-            localStorage.setItem(CONFIG.STORAGE_KEYS.USER_IMAGE, AppState.user.image);
         }
     }
 }
