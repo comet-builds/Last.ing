@@ -150,7 +150,6 @@ listenBtn.addEventListener('click', async () => {
                     showStatus('Could not identify the song.', 'error');
                 }
             } catch (error) {
-                console.error('Recognition error:', error);
                 showStatus(error.message, 'error');
             }
         });
