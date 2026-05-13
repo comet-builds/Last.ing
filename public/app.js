@@ -1425,47 +1425,42 @@ function createHistoryInfo(track) {
     return info;
 }
 
+function handleEditScrobble(track) {
+    modeTrackBtn.click();
+    artistInput.value = track.artist['#text'];
+    trackInput.value = track.name;
+    albumInput.value = track.album?.['#text'] || '';
+    albumArtistInput.value = track.albumArtist?.['#text'] || '';
+
+    if (track.date?.uts) {
+        const dateObj = new Date(track.date.uts * 1000);
+        updateDateTimeInputs(dateObj, dateInput, timeInput);
+    }
+
+    if (pinArtistBtn.classList.contains('active')) pinArtistBtn.click();
+    if (pinTrackBtn.classList.contains('active')) pinTrackBtn.click();
+    if (pinAlbumBtn.classList.contains('active')) pinAlbumBtn.click();
+    if (pinAlbumArtistBtn.classList.contains('active')) pinAlbumArtistBtn.click();
+
+    globalThis.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function createIconButton(className, iconSvg, title) {
+    const btn = document.createElement('button');
+    btn.className = className;
+    btn.innerHTML = iconSvg;
+    btn.title = title;
+    return btn;
+}
+
 function createHistoryActionButtons(track) {
     const buttonsDiv = document.createElement('div');
     buttonsDiv.className = 'history-buttons';
 
-    const editBtn = document.createElement('button');
-    editBtn.className = 'edit-scrobble-btn';
-    editBtn.innerHTML = EDIT_ICON_SVG;
-    editBtn.title = 'Edit Scrobble';
-    editBtn.addEventListener('click', () => {
-        modeTrackBtn.click();
-        artistInput.value = track.artist['#text'];
-        trackInput.value = track.name;
-        if (track.album?.['#text']) {
-            albumInput.value = track.album['#text'];
-        } else {
-            albumInput.value = '';
-        }
+    const editBtn = createIconButton('edit-scrobble-btn', EDIT_ICON_SVG, 'Edit Scrobble');
+    editBtn.addEventListener('click', () => handleEditScrobble(track));
 
-        if (track.albumArtist?.['#text']) {
-             albumArtistInput.value = track.albumArtist['#text'];
-        } else {
-             albumArtistInput.value = '';
-        }
-
-        if (track.date?.uts) {
-            const dateObj = new Date(track.date.uts * 1000);
-            updateDateTimeInputs(dateObj, dateInput, timeInput);
-        }
-
-        if (pinArtistBtn.classList.contains('active')) pinArtistBtn.click();
-        if (pinTrackBtn.classList.contains('active')) pinTrackBtn.click();
-        if (pinAlbumBtn.classList.contains('active')) pinAlbumBtn.click();
-        if (pinAlbumArtistBtn.classList.contains('active')) pinAlbumArtistBtn.click();
-
-        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-scrobble-btn';
-    deleteBtn.innerHTML = DELETE_ICON_SVG;
-    deleteBtn.title = 'Delete Scrobble';
+    const deleteBtn = createIconButton('delete-scrobble-btn', DELETE_ICON_SVG, 'Delete Scrobble');
     deleteBtn.dataset.artist = track.artist['#text'];
     deleteBtn.dataset.track = track.name;
     if (track.date?.uts) {
