@@ -55,7 +55,7 @@ const recalculateSignature = (queryParams, bodyParams, hasBody) => {
         queryParams.delete('api_sig');
         bodyParams.delete('api_sig');
 
-        const allParams = {};
+        const allParams = Object.create(null);
         queryParams.forEach((value, key) => { allParams[key] = value; });
         bodyParams.forEach((value, key) => { allParams[key] = value; });
 
