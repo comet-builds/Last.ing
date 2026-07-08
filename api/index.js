@@ -1020,7 +1020,7 @@ app.get('/api/get-recent-tracks', async (req, res) => {
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10 MB limit
+        fileSize: 2 * 1024 * 1024 // 2 MB limit
     }
 });
 
