@@ -349,8 +349,8 @@ function updateUserSession(name, images) {
                 if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
                     AppState.user.image = parsedUrl.href;
 
-                    if (AppState.user.image.startsWith('https://lastfm.freetls.fastly.net/i/u/')) {
-                        AppState.user.image = AppState.user.image.replace('https://lastfm.freetls.fastly.net/i/u/34', 'https://lastfm.freetls.fastly.net/i/u/avatar42');
+                    if (AppState.user.image.startsWith('https://lastfm-img.freetls.fastly.net/i/u/')) {
+                        AppState.user.image = AppState.user.image.replace('https://lastfm-img.freetls.fastly.net/i/u/34', 'https://lastfm-img.freetls.fastly.net/i/u/avatar42');
                     }
 
                     localStorage.setItem(CONFIG.STORAGE_KEYS.USER_IMAGE, AppState.user.image);
