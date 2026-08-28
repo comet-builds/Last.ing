@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/api"
+    schedule:
+      interval: "weekly" # Options: daily, weekly, monthly
+    groups:
+      all-dependencies:
+        patterns:
+          - "*" # Groups all updates into a single Pull Request
+    open-pull-requests-limit: 5
