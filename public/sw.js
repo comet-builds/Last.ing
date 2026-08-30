@@ -1,4 +1,4 @@
-const CACHE_NAME = 'last-ing-cache-v4';
+const CACHE_NAME = 'last-ing-cache-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,9 +6,6 @@ const ASSETS_TO_CACHE = [
   './app.js',
   './manifest.json',
   './assets/icons/icon.svg',
-  './assets/icons/icon-maskable.svg',
-  './assets/icons/icon-maskable-192.png',
-  './assets/icons/icon-maskable-512.png',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/icon-180.png'
