@@ -1,35 +1,37 @@
 {
+  "id": "/?pwa=1",
   "name": "Last.ing",
   "short_name": "Last.ing",
   "description": "A minimalist manual scrobbler for Last.fm.",
-  "start_url": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#b90000",
   "icons": [
     {
-      "src": "assets/icons/icon-192.png",
-      "sizes": "192x192",
+      "src": "/assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable any"
     },
     {
-      "src": "assets/icons/icon-512.png",
+      "src": "/assets/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/icons/icon-maskable-192.png",
+      "src": "/assets/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "assets/icons/icon-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     }
   ]
 }
