@@ -1,11 +1,17 @@
-const CACHE_NAME = 'last-ing-cache-v2';
+const CACHE_NAME = 'last-ing-cache-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './assets/icons/icon.svg'
+  './assets/icons/icon.svg',
+  './assets/icons/icon-maskable.svg',
+  './assets/icons/icon-maskable-192.png',
+  './assets/icons/icon-maskable-512.png',
+  './assets/icons/icon-192.png',
+  './assets/icons/icon-512.png',
+  './assets/icons/icon-180.png'
 ];
 
 self.addEventListener('install', (event) => {
