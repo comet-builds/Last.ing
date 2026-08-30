@@ -2,7 +2,7 @@
   "id": "/?pwa=1",
   "name": "Last.ing",
   "short_name": "Last.ing",
-  "description": "A minimalist manual scrobbler for Last.fm.",
+  "description": "A minimalist manual scrobbler for Last.fm",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
