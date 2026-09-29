@@ -33,14 +33,42 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-function putInCache(request, networkResponse) {
+async function putInCache(request, networkResponse) {
   if (networkResponse?.status === 200 && networkResponse?.type === 'basic') {
     const responseToCache = networkResponse.clone();
-    return caches.open(CACHE_NAME).then((cache) => {
-      return cache.put(request, responseToCache);
-    }).catch(() => {});
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, responseToCache);
+    } catch {
+      // Ignore cache errors
+    }
   }
-  return Promise.resolve();
+}
+
+async function fetchAndCache(request) {
+  const networkResponse = await fetch(request);
+  void putInCache(request, networkResponse);
+  return networkResponse;
+}
+
+async function handleNetworkFirst(request) {
+  try {
+    return await fetchAndCache(request);
+  } catch {
+    return caches.match(request);
+  }
+}
+
+async function handleStaleWhileRevalidate(request) {
+  const cachedResponse = await caches.match(request);
+  const fetchPromise = fetchAndCache(request);
+
+  if (cachedResponse) {
+    fetchPromise.catch(() => {});
+    return cachedResponse;
+  }
+
+  return fetchPromise;
 }
 
 self.addEventListener('fetch', (event) => {
@@ -57,27 +85,9 @@ self.addEventListener('fetch', (event) => {
   const isScript = event.request.destination === 'script' || url.pathname.endsWith('.js');
 
   if (isNavigation || isScript) {
-    event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          void putInCache(event.request, networkResponse);
-          return networkResponse;
-        })
-        .catch(() => {
-          return caches.match(event.request);
-        })
-    );
+    event.respondWith(handleNetworkFirst(event.request));
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        void putInCache(event.request, networkResponse);
-        return networkResponse;
-      });
-
-      return cachedResponse || fetchPromise;
-    })
-  );
+  event.respondWith(handleStaleWhileRevalidate(event.request));
 });
