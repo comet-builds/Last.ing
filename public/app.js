@@ -550,7 +550,7 @@ function showHistoryMode() {
     scrobbleForm.classList.add('hidden');
     albumScrobbleContainer.classList.add('hidden');
     fixPastSection.classList.remove('hidden');
-    loadHistory();
+    void loadHistory();
 }
 
 modeTrackBtn.addEventListener('click', () => {
@@ -800,7 +800,7 @@ async function performAlbumSearch() {
 
 albumSearchBtn.addEventListener('click', performAlbumSearch);
 albumSearchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') performAlbumSearch();
+    if (e.key === 'Enter') void performAlbumSearch();
 });
 
 function renderAlbumResults(albums) {
@@ -1267,7 +1267,7 @@ if (reloadHistoryBtn) {
 if (loadMoreHistoryBtn) {
     loadMoreHistoryBtn.addEventListener('click', () => {
         AppState.history.page++;
-        loadHistory(true);
+        void loadHistory(true);
     });
 }
 
@@ -1540,7 +1540,7 @@ filterNoAlbum.addEventListener('click', () => {
    if (AppState.history.tracks.length > 0) {
        renderHistory(AppState.history.tracks);
    } else {
-       loadHistory();
+       void loadHistory();
    }
 });
 
@@ -1549,7 +1549,7 @@ filterDuplicates.addEventListener('click', () => {
    if (AppState.history.tracks.length > 0) {
        renderHistory(AppState.history.tracks);
    } else {
-       loadHistory();
+       void loadHistory();
    }
 });
 
@@ -1660,12 +1660,12 @@ function handleAlbumModeState(params) {
         const isVerificationView = !albumVerificationView.classList.contains('hidden');
 
         if (!isVerificationView || currentArtist !== artist || currentAlbum !== album) {
-            selectAlbum({ artist: artist, name: album });
+            void selectAlbum({ artist: artist, name: album });
         }
     } else if (q) {
         if (albumSearchInput.value !== q || albumResults.dataset.query !== q || albumResults.children.length === 0) {
             albumSearchInput.value = q;
-            performAlbumSearch();
+            void performAlbumSearch();
         } else {
             albumVerificationView.classList.add('hidden');
             albumSearchView.classList.remove('hidden');
