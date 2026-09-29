@@ -665,37 +665,41 @@ const fetchAlbumsForTracks = async (uniqueTracks) => {
     let index = 0;
 
     const worker = async () => {
-        while (index < uniqueTracks.length) {
-            const currentIndex = index++;
-            const trackMatch = uniqueTracks[currentIndex];
-
-            const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : JSON.stringify(['track', trackMatch.artist, trackMatch.name]);
-            const cachedData = albumCache.get(cacheKey);
-
-            if (cachedData !== undefined) {
-                matchAlbums[currentIndex] = cachedData;
-                continue;
-            }
-
-            try {
-                const params = {};
-                if (trackMatch.mbid) {
-                    params.mbid = trackMatch.mbid;
-                } else {
-                    params.artist = trackMatch.artist;
-                    params.track = trackMatch.name;
-                }
-
-                const data = await makeLastFmRequest('track.getInfo', params);
-                const albumInfo = getAlbumInfoFromTrack(data.track);
-                albumCache.set(cacheKey, albumInfo);
-                matchAlbums[currentIndex] = albumInfo;
-            } catch {
-                console.warn('Match lookup failed');
-                albumCache.set(cacheKey, null);
-                matchAlbums[currentIndex] = null;
-            }
+        if (index >= uniqueTracks.length) {
+            return;
         }
+
+        const currentIndex = index++;
+        const trackMatch = uniqueTracks[currentIndex];
+
+        const cacheKey = trackMatch.mbid ? `track-mbid:${trackMatch.mbid}` : JSON.stringify(['track', trackMatch.artist, trackMatch.name]);
+        const cachedData = albumCache.get(cacheKey);
+
+        if (cachedData !== undefined) {
+            matchAlbums[currentIndex] = cachedData;
+            return worker();
+        }
+
+        try {
+            const params = {};
+            if (trackMatch.mbid) {
+                params.mbid = trackMatch.mbid;
+            } else {
+                params.artist = trackMatch.artist;
+                params.track = trackMatch.name;
+            }
+
+            const data = await makeLastFmRequest('track.getInfo', params);
+            const albumInfo = getAlbumInfoFromTrack(data.track);
+            albumCache.set(cacheKey, albumInfo);
+            matchAlbums[currentIndex] = albumInfo;
+        } catch {
+            console.warn('Match lookup failed');
+            albumCache.set(cacheKey, null);
+            matchAlbums[currentIndex] = null;
+        }
+
+        return worker();
     };
 
     const workers = [];
