@@ -36,10 +36,11 @@ self.addEventListener('activate', (event) => {
 function putInCache(request, networkResponse) {
   if (networkResponse?.status === 200 && networkResponse?.type === 'basic') {
     const responseToCache = networkResponse.clone();
-    caches.open(CACHE_NAME).then((cache) => {
-      cache.put(request, responseToCache);
-    });
+    return caches.open(CACHE_NAME).then((cache) => {
+      return cache.put(request, responseToCache);
+    }).catch(() => {});
   }
+  return Promise.resolve();
 }
 
 self.addEventListener('fetch', (event) => {
@@ -59,7 +60,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
-          putInCache(event.request, networkResponse);
+          void putInCache(event.request, networkResponse);
           return networkResponse;
         })
         .catch(() => {
@@ -72,7 +73,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
-        putInCache(event.request, networkResponse);
+        void putInCache(event.request, networkResponse);
         return networkResponse;
       });
 
