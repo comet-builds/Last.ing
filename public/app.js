@@ -1180,35 +1180,26 @@ if (editAlbumBtn) {
 
 const processBatchScrobble = withSpinner(async (tracksToScrobble) => {
     try {
-        const concurrencyLimit = 5;
         const batchSize = 50;
+        const batches = [];
 
-        for (let i = 0; i < tracksToScrobble.length; i += batchSize * concurrencyLimit) {
-            const chunkPromises = [];
-
-            for (let j = 0; j < concurrencyLimit; j++) {
-                const start = i + j * batchSize;
-                if (start >= tracksToScrobble.length) break;
-
-                const batch = tracksToScrobble.slice(start, start + batchSize);
-
-                chunkPromises.push((async (currentBatch) => {
-                    const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble-batch`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tracks: currentBatch })
-                    });
-
-                    const data = await response.json();
-                    if (data.error) {
-                        throw new Error(data.message || 'Batch scrobble failed');
-                    }
-                    return data;
-                })(batch));
-            }
-
-            await Promise.all(chunkPromises);
+        for (let i = 0; i < tracksToScrobble.length; i += batchSize) {
+            batches.push(tracksToScrobble.slice(i, i + batchSize));
         }
+
+        await Promise.all(batches.map(async (batch) => {
+            const response = await fetch(`${CONFIG.BACKEND_URL}/scrobble-batch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tracks: batch })
+            });
+
+            const data = await response.json();
+            if (data.error) {
+                throw new Error(data.message || 'Batch scrobble failed');
+            }
+            return data;
+        }));
 
         showStatus('Scrobbled', 'success');
 
