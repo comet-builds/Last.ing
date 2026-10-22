@@ -317,10 +317,6 @@ input:focus {
     border: 1px solid #ff8787;
 }
 
-.hidden {
-    display: none !important;
-}
-
 footer {
     width: 100%;
     background-color: var(--card-bg);
@@ -404,8 +400,9 @@ footer a:hover {
     padding: 8px;
 }
 
-.listen-active {
-    background-color: var(--accent-color) !important;
+.secondary.listen-active,
+.secondary.listen-active:hover {
+    background-color: var(--accent-color);
     animation: pulse 1.5s infinite;
 }
 
@@ -1020,4 +1017,8 @@ a.track-name:hover {
 
 #load-more-history-btn {
     margin-top: 1rem;
+}
+
+.hidden {
+    display: none;
 }
