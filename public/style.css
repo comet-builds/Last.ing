@@ -297,7 +297,12 @@ input:focus {
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
-    animation: slideUp 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .toast {
+        animation: slideUp 0.3s ease-out;
+    }
 }
 
 @keyframes slideUp {
@@ -403,7 +408,13 @@ footer a:hover {
 .secondary.listen-active,
 .secondary.listen-active:hover {
     background-color: var(--accent-color);
-    animation: pulse 1.5s infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .secondary.listen-active,
+    .secondary.listen-active:hover {
+        animation: pulse 1.5s infinite;
+    }
 }
 
 @keyframes pulse {
@@ -440,14 +451,22 @@ footer a:hover {
     border-radius: var(--border-radius);
     padding: 10px;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
     text-align: center;
 }
 
 .album-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     background-color: #333;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .album-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .album-card:hover {
+        transform: translateY(-2px);
+    }
 }
 
 .album-cover {
