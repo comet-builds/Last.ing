@@ -1,17 +1,10 @@
 const express = require('express');
 const helmet = require('helmet');
-const compression = require('compression');
 const crypto = require('node:crypto');
 const https = require('node:https');
-const axios = require('axios');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
-const FormData = require('form-data');
-
-if (process.env.NODE_ENV !== 'production') {
-    require('dotenv').config();
-}
 
 const app = express();
 
@@ -105,7 +98,6 @@ app.use(helmet({
         },
     },
 }));
-app.use(compression());
 
 
 app.use('/api/2.0/', express.raw({ type: '*/*', limit: MAX_BODY_SIZE }), (req, res) => {
@@ -198,11 +190,40 @@ app.use((req, res, next) => {
 });
 
 
-const agent = new https.Agent({ keepAlive: true });
-const apiClient = axios.create({
-    httpsAgent: agent,
-    timeout: 30000
-});
+const REQUEST_TIMEOUT_MS = 30000;
+
+const parseResponseBody = (text) => {
+    try {
+        return JSON.parse(text);
+    } catch {
+        return text;
+    }
+};
+
+const fetchJson = async (url, options = {}) => {
+    const response = await fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+
+    const text = await response.text();
+    const data = parseResponseBody(text);
+
+    if (!response.ok) {
+        const message = typeof data === 'object' && data?.message
+            ? data.message
+            : `Request failed with status code ${response.status}`;
+        const error = new Error(message);
+        error.response = {
+            status: response.status,
+            statusText: response.statusText,
+            data
+        };
+        throw error;
+    }
+
+    return data;
+};
 
 // Simple LRU Cache for Album Info
 class SimpleLRUCache {
@@ -274,19 +295,16 @@ const searchMusicBrainzRelease = async (artist, album) => {
     const escapedArtist = escapeLucene(artist);
 
     const query = `release:${escapedAlbum} AND artist:${escapedArtist}`;
-    const searchUrl = `${MUSICBRAINZ_API_ROOT}release/`;
+    const searchUrl = new URL(`${MUSICBRAINZ_API_ROOT}release/`);
+    searchUrl.search = new URLSearchParams({ query, fmt: 'json' }).toString();
 
-    const searchResponse = await apiClient.get(searchUrl, {
-        params: {
-            query: query,
-            fmt: 'json'
-        },
+    const searchData = await fetchJson(searchUrl, {
         headers: {
             'User-Agent': MUSICBRAINZ_USER_AGENT
         }
     });
 
-    const releases = searchResponse.data.releases;
+    const releases = searchData.releases;
     if (releases && releases.length > 0) {
         // Use the first result
         const mbid = releases[0].id;
@@ -300,17 +318,18 @@ const searchMusicBrainzRelease = async (artist, album) => {
 };
 
 const fetchReleaseMedia = async (mbid) => {
-    const lookupUrl = `${MUSICBRAINZ_API_ROOT}release/${encodeURIComponent(mbid)}`;
-    const lookupResponse = await apiClient.get(lookupUrl, {
-        params: {
-            inc: 'recordings+artist-credits',
-            fmt: 'json'
-        },
+    const lookupUrl = new URL(`${MUSICBRAINZ_API_ROOT}release/${encodeURIComponent(mbid)}`);
+    lookupUrl.search = new URLSearchParams({
+        inc: 'recordings+artist-credits',
+        fmt: 'json'
+    }).toString();
+
+    const lookupData = await fetchJson(lookupUrl, {
         headers: {
             'User-Agent': MUSICBRAINZ_USER_AGENT
         }
     });
-    return lookupResponse.data.media;
+    return lookupData.media;
 };
 
 const parseReleaseTracks = (media, defaultArtist) => {
@@ -434,24 +453,26 @@ const prepareLastFmParams = (method, params, signed) => {
 };
 
 const executeLastFmRequest = async (httpMethod, requestParams) => {
-    let response;
+    let data;
 
     if (httpMethod === 'POST') {
-        const postData = new URLSearchParams(requestParams);
-        response = await apiClient.post(API_ROOT, postData, {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        data = await fetchJson(API_ROOT, {
+            method: 'POST',
+            body: new URLSearchParams(requestParams)
         });
     } else {
-        response = await apiClient.get(API_ROOT, { params: requestParams });
+        const url = new URL(API_ROOT);
+        url.search = new URLSearchParams(requestParams).toString();
+        data = await fetchJson(url);
     }
 
-    if (response.data.error) {
-        const error = new Error(response.data.message);
-        error.response = { data: response.data, status: 400 };
+    if (data.error) {
+        const error = new Error(data.message);
+        error.response = { data, status: 400 };
         throw error;
     }
 
-    return response.data;
+    return data;
 };
 
 const makeLastFmRequest = async (method, params = {}, { signed = false, httpMethod = 'GET' } = {}) => {
@@ -1074,12 +1095,13 @@ const generateACRCloudSignature = (accessSecret, accessKey, endpoint, dataType, 
 
 const createACRCloudFormData = (file, accessKey, dataType, signatureVersion, signature, timestamp) => {
     const formData = new FormData();
-    formData.append('sample', file.buffer, { filename: 'sample.webm', contentType: file.mimetype });
+    const audioBlob = new Blob([file.buffer], { type: file.mimetype });
+    formData.append('sample', audioBlob, 'sample.webm');
     formData.append('access_key', accessKey);
     formData.append('data_type', dataType);
     formData.append('signature_version', signatureVersion);
     formData.append('signature', signature);
-    formData.append('sample_bytes', file.size);
+    formData.append('sample_bytes', String(file.size));
     formData.append('timestamp', timestamp);
     return formData;
 };
@@ -1116,11 +1138,12 @@ app.post('/api/recognize', upload.single('audio'), async (req, res) => {
         const signature = generateACRCloudSignature(accessSecret, accessKey, endpoint, dataType, signatureVersion, timestamp);
         const formData = createACRCloudFormData(req.file, accessKey, dataType, signatureVersion, signature, timestamp);
 
-        const response = await apiClient.post(`https://${host}${endpoint}`, formData, {
-            headers: formData.getHeaders()
+        const data = await fetchJson(`https://${host}${endpoint}`, {
+            method: 'POST',
+            body: formData
         });
 
-        const parsedResponse = parseACRCloudResponse(response.data);
+        const parsedResponse = parseACRCloudResponse(data);
 
         if (parsedResponse.success) {
             return res.json({ artist: parsedResponse.artist, track: parsedResponse.track });
