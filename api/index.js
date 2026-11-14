@@ -122,6 +122,7 @@ app.use('/api/2.0/', express.raw({ type: '*/*', limit: MAX_BODY_SIZE }), (req, r
             headers: { ...req.headers }
         };
         delete options.headers.host;
+        delete options.headers['transfer-encoding'];
 
         const rawQueryString = req.originalUrl.split('?')[1] || '';
         const queryParams = new URLSearchParams(rawQueryString);
@@ -494,20 +495,26 @@ const enrichAlbumWithMusicBrainzFallback = async (data, artist, album, mbid) => 
         return;
     }
 
-    const mbTracks = await getMusicBrainzTracklist(
-        data.album?.artist || artist,
-        data.album?.name || album,
-        data.album?.mbid || mbid
-    );
+    try {
+        const mbTracks = await getMusicBrainzTracklist(
+            data.album?.artist || artist,
+            data.album?.name || album,
+            data.album?.mbid || mbid
+        );
 
-    updateAlbumTracks(data.album, mbTracks);
+        updateAlbumTracks(data.album, mbTracks);
+    } catch {
+        console.warn('MusicBrainz fallback failed');
+    }
 };
 
 const getAlbumInfoFromTrack = (trackInfo) => {
-    if (trackInfo?.album) {
+    const title = trackInfo?.album?.title;
+    const artist = trackInfo?.album?.artist || trackInfo?.artist?.name;
+    if (title && artist) {
         return {
-            name: trackInfo.album.title,
-            artist: trackInfo.album.artist || trackInfo.artist.name,
+            name: title,
+            artist,
             image: trackInfo.album.image,
             mbid: trackInfo.album.mbid,
             url: trackInfo.album.url
@@ -834,6 +841,10 @@ app.post('/api/auth', async (req, res) => {
             if (userData.user?.image) {
                 safeSession.image = userData.user.image;
             }
+            userCache.set(sessionData.session.key, {
+                name: safeSession.name,
+                image: safeSession.image
+            });
         } catch {
             console.warn('Failed to fetch user image');
         }
@@ -886,6 +897,10 @@ app.get('/api/check-auth', async (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
+    const sessionKey = req.signedCookies.lastfm_session_key;
+    if (sessionKey) {
+        userCache.set(sessionKey, null);
+    }
     res.clearCookie('lastfm_session_key', { httpOnly: true, secure: true, sameSite: 'Strict', signed: true });
     res.json({ message: 'Logged out' });
 });
@@ -1101,7 +1116,7 @@ app.post('/api/recognize', upload.single('audio'), async (req, res) => {
         const signature = generateACRCloudSignature(accessSecret, accessKey, endpoint, dataType, signatureVersion, timestamp);
         const formData = createACRCloudFormData(req.file, accessKey, dataType, signatureVersion, signature, timestamp);
 
-        const response = await axios.post(`https://${host}${endpoint}`, formData, {
+        const response = await apiClient.post(`https://${host}${endpoint}`, formData, {
             headers: formData.getHeaders()
         });
 
@@ -1120,6 +1135,22 @@ app.post('/api/recognize', upload.single('audio'), async (req, res) => {
 
 app.get('/api/health', (req, res) => {
     res.send('Last.ing Backend is running.');
+});
+
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({ error: 'Audio file too large (max 2MB)' });
+        }
+        return res.status(400).json({ error: err.message });
+    }
+    if (err?.status === 413) {
+        return res.status(413).json({ error: 'Payload Too Large' });
+    }
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ error: 'Invalid JSON payload' });
+    }
+    next(err);
 });
 
 module.exports = app;

@@ -82,7 +82,8 @@ const AppState = {
         statusTimeout: null
     },
     album: {
-        tracks: []
+        tracks: [],
+        selectAllBtn: null
     },
     history: {
         page: 1,
@@ -140,7 +141,7 @@ listenBtn.addEventListener('click', async () => {
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || data.details || 'Failed to identify audio');
+                    throw new Error(data.error || data.details);
                 }
 
                 if (data.artist && data.track) {
@@ -178,15 +179,19 @@ const doCheckAuth = async () => {
         const data = await response.json();
 
         if (data.authenticated) {
+            const wasHidden = scrobbleSection.classList.contains('hidden');
             if (data.user) {
                 updateUserSession(data.user.name, data.user.image);
             }
-            showScrobbleUI();
+            showScrobbleUI(wasHidden);
         } else {
+            clearUserSession();
             showAuthUI();
         }
     } catch {
-        showAuthUI();
+        if (!AppState.user.name) {
+            showAuthUI();
+        }
     }
 };
 
@@ -200,13 +205,20 @@ async function checkAuthStatusWithSpinner() {
     return await doCheckAuthWithSpinner();
 }
 
+function clearUserSession() {
+    localStorage.removeItem(CONFIG.STORAGE_KEYS.USERNAME);
+    localStorage.removeItem(CONFIG.STORAGE_KEYS.USER_IMAGE);
+    AppState.user.name = null;
+    AppState.user.image = null;
+}
+
 function showAuthUI() {
     authSection.classList.remove('hidden');
     scrobbleSection.classList.add('hidden');
     headerUserInfo.classList.add('hidden');
 }
 
-function showScrobbleUI() {
+function showScrobbleUI(shouldRenderState = true) {
     authSection.classList.add('hidden');
     scrobbleSection.classList.remove('hidden');
     headerUserInfo.classList.remove('hidden');
@@ -232,7 +244,9 @@ function showScrobbleUI() {
         userAvatar.src = '';
     }
 
-    renderStateFromUrl();
+    if (shouldRenderState) {
+        renderStateFromUrl();
+    }
 }
 
 loginBtn.addEventListener('click', withSpinner(async () => {
@@ -287,10 +301,7 @@ logoutBtn.addEventListener('click', async () => {
     } catch {
     }
 
-    localStorage.removeItem(CONFIG.STORAGE_KEYS.USERNAME);
-    localStorage.removeItem(CONFIG.STORAGE_KEYS.USER_IMAGE);
-    AppState.user.name = null;
-    AppState.user.image = null;
+    clearUserSession();
     showAuthUI();
 });
 
@@ -516,6 +527,15 @@ function setTimestampToNow(dateEl, timeEl) {
     updateDateTimeInputs(now, dateEl, timeEl);
 }
 
+function syncVaButtonState() {
+    if (!vaBtn || !albumArtistInput) return;
+    if (albumArtistInput.value === 'Various Artists') {
+        vaBtn.classList.add('active');
+    } else {
+        vaBtn.classList.remove('active');
+    }
+}
+
 function getTimestampFromInputs(dateEl, timeEl) {
     const dateVal = dateEl.value;
     const timeVal = timeEl.value;
@@ -523,7 +543,9 @@ function getTimestampFromInputs(dateEl, timeEl) {
     if (!dateVal || !timeVal) return null;
 
     const dateObj = new Date(`${dateVal}T${timeVal}`);
-    return Math.floor(dateObj.getTime() / 1000);
+    const timeMs = dateObj.getTime();
+    if (Number.isNaN(timeMs)) return null;
+    return Math.floor(timeMs / 1000);
 }
 
 // --- Toggle Logic ---
@@ -559,7 +581,7 @@ function showHistoryMode() {
 }
 
 modeTrackBtn.addEventListener('click', () => {
-    updateUrl({ mode: 'track' });
+    updateUrl({ mode: 'track', q: null, artist: null, album: null });
 });
 
 modeAlbumBtn.addEventListener('click', () => {
@@ -567,7 +589,7 @@ modeAlbumBtn.addEventListener('click', () => {
 });
 
 modeFixPastBtn.addEventListener('click', () => {
-    updateUrl({ mode: 'history' });
+    updateUrl({ mode: 'history', q: null, artist: null, album: null });
 });
 
 // --- Pin Logic ---
@@ -638,7 +660,10 @@ scrobbleForm.addEventListener('submit', async (e) => {
         if (!pinArtistBtn.classList.contains('active')) artistInput.value = '';
         if (!pinTrackBtn.classList.contains('active')) trackInput.value = '';
         if (!pinAlbumBtn.classList.contains('active')) albumInput.value = '';
-        if (!pinAlbumArtistBtn.classList.contains('active')) albumArtistInput.value = '';
+        if (!pinAlbumArtistBtn.classList.contains('active')) {
+            albumArtistInput.value = '';
+            syncVaButtonState();
+        }
 
         setTimestampToNow(dateInput, timeInput);
     }
@@ -740,13 +765,7 @@ function renderTrackAlbumResults(albums) {
             albumInput.value = selectedAlbum.name;
             if (selectedAlbum.artist) {
                 albumArtistInput.value = selectedAlbum.artist;
-                if (vaBtn) {
-                     if (selectedAlbum.artist === 'Various Artists') {
-                        vaBtn.classList.add('active');
-                     } else {
-                        vaBtn.classList.remove('active');
-                     }
-                }
+                syncVaButtonState();
             }
 
             trackAlbumResults.classList.add('hidden');
@@ -833,13 +852,7 @@ function renderAlbumResults(albums) {
 
 const fetchAndSelectAlbum = withSpinner(async (album) => {
     try {
-        let url = `${CONFIG.BACKEND_URL}/get-album-info?`;
-        if (album.mbid) {
-            url += `mbid=${album.mbid}`;
-        } else {
-            url += `artist=${encodeURIComponent(album.artist)}&album=${encodeURIComponent(album.name)}`;
-        }
-
+        const url = `${CONFIG.BACKEND_URL}/get-album-info?artist=${encodeURIComponent(album.artist)}&album=${encodeURIComponent(album.name)}`;
         const response = await fetch(url);
         const data = await response.json();
 
@@ -934,14 +947,7 @@ function handleEmptyAlbum(albumInfo) {
             artistInput.value = albumInfo.artist;
             albumInput.value = albumInfo.name;
             albumArtistInput.value = albumInfo.artist;
-
-            if (vaBtn) {
-                if (albumInfo.artist === 'Various Artists') {
-                    vaBtn.classList.add('active');
-                } else {
-                    vaBtn.classList.remove('active');
-                }
-            }
+            syncVaButtonState();
 
             if (!pinArtistBtn.classList.contains('active')) pinArtistBtn.click();
             if (!pinAlbumBtn.classList.contains('active')) pinAlbumBtn.click();
@@ -967,16 +973,17 @@ function renderAlbumTracks(trackArray, albumInfo) {
     selectAllBtn.className = 'btn secondary small-btn active';
     selectAllBtn.textContent = 'Select All';
     selectAllBtn.addEventListener('click', () => {
-        selectAllBtn.classList.toggle('active');
-        const checked = selectAllBtn.classList.contains('active');
+        const shouldCheckAll = !selectAllBtn.classList.contains('active');
+        selectAllBtn.classList.toggle('active', shouldCheckAll);
 
         AppState.album.tracks.forEach(track => {
             if (track.checkbox) {
-                track.checkbox.checked = checked;
+                track.checkbox.checked = shouldCheckAll;
             }
         });
         updateTrackTimestamps();
     });
+    AppState.album.selectAllBtn = selectAllBtn;
 
     headerRow.appendChild(selectAllBtn);
     tracklistContainer.appendChild(headerRow);
@@ -1112,6 +1119,11 @@ function updateTrackTimestamps() {
         }
     });
 
+    if (AppState.album.selectAllBtn) {
+        const allChecked = AppState.album.tracks.length > 0 && checkedIndices.length === AppState.album.tracks.length;
+        AppState.album.selectAllBtn.classList.toggle('active', allChecked);
+    }
+
     if (checkedIndices.length === 0) return;
 
     let currentStart = endTimestamp;
@@ -1223,15 +1235,15 @@ confirmAlbumScrobbleBtn.addEventListener('click', async () => {
     updateTrackTimestamps();
 
     const tracksToScrobble = [];
-    const finalAlbumName = selectedAlbumName.value;
-    const finalAlbumArtist = selectedAlbumArtist.value;
+    const finalAlbumName = selectedAlbumName.value.trim();
+    const finalAlbumArtist = selectedAlbumArtist.value.trim();
 
     AppState.album.tracks.forEach((track) => {
         if (track.checkbox?.checked) {
             if (!track.calculatedTimestamp) return;
 
             let finalArtist = track.artist;
-            if (track.artist === track.albumArtist) {
+            if (track.artist === track.albumArtist && finalAlbumArtist) {
                 finalArtist = finalAlbumArtist;
             }
 
@@ -1348,7 +1360,11 @@ function filterHistoryTracks(tracks, showNoAlbum, showDuplicates) {
 
     for (const track of tracks) {
         if (track['@attr']?.nowplaying === 'true') continue;
-        if (showNoAlbum && track.album?.['#text']) continue;
+        if (showNoAlbum && track.album?.['#text']) {
+            inDupSequence = false;
+            prevTrack = null;
+            continue;
+        }
 
         if (!showDuplicates) {
             result.push(track);
@@ -1426,6 +1442,7 @@ function handleEditScrobble(track) {
     trackInput.value = track.name;
     albumInput.value = track.album?.['#text'] || '';
     albumArtistInput.value = track.albumArtist?.['#text'] || '';
+    syncVaButtonState();
 
     if (track.date?.uts) {
         const dateObj = new Date(track.date.uts * 1000);
@@ -1591,13 +1608,7 @@ if (vaBtn && albumArtistInput) {
         }
     });
 
-    albumArtistInput.addEventListener('input', () => {
-         if (albumArtistInput.value === 'Various Artists') {
-             vaBtn.classList.add('active');
-         } else {
-             vaBtn.classList.remove('active');
-         }
-    });
+    albumArtistInput.addEventListener('input', syncVaButtonState);
 }
 
 if (albumNowBtn) {

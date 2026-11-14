@@ -1,11 +1,13 @@
-const CACHE_NAME = 'last-ing-cache-v7';
+const CACHE_NAME = 'last-ing-cache-v8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
+  './assets/fonts/inter.woff2',
   './assets/icons/icon.svg',
+  './assets/icons/sprite.svg',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/icon-maskable-192.png',
