@@ -267,7 +267,7 @@ const handleAuthCallback = withSpinner(async (token) => {
         const data = await response.json();
 
         if (data.error) {
-            throw new Error(data.message || 'Authentication failed');
+            throw new Error(data.message || data.error);
         }
 
         updateUserSession(data.session.name, data.session.image);
@@ -299,6 +299,11 @@ logoutBtn.addEventListener('click', async () => {
 function encodeLastFmParam(param) {
     if (!param) return '';
     return encodeURIComponent(param).replaceAll('%20', '+').replaceAll('%2B', '%252B');
+}
+
+function toArray(val) {
+    if (!val) return [];
+    return Array.isArray(val) ? val : [val];
 }
 
 function isValidUrl(url) {
@@ -592,7 +597,7 @@ const submitScrobble = withSpinner(async (payload) => {
         const data = await response.json();
 
         if (data.error) {
-            throw new Error(data.message || 'Scrobble failed');
+            throw new Error(data.message || data.error);
         }
 
         showStatus(`Scrobbled`, 'success');
@@ -653,7 +658,7 @@ const fetchTrackAlbums = withSpinner(async (artist, track) => {
         const data = await response.json();
 
         if (data.error) {
-            throw new Error(data.message || 'Lookup failed');
+            throw new Error(data.message || data.error);
         }
 
         const albums = data.albums || [];
@@ -764,10 +769,10 @@ const fetchAlbumSearch = withSpinner(async (query) => {
         const data = await response.json();
 
         if (data.error) {
-            throw new Error(data.message || 'Search failed');
+            throw new Error(data.message || data.error);
         }
 
-        const albums = data.results?.albummatches?.album || [];
+        const albums = toArray(data.results?.albummatches?.album);
 
         if (albums.length === 0) {
             showStatus('No albums found', 'error');
@@ -839,7 +844,7 @@ const fetchAndSelectAlbum = withSpinner(async (album) => {
         const data = await response.json();
 
         if (data.error) {
-            throw new Error(data.message || 'Failed to load album info');
+            throw new Error(data.message || data.error);
         }
 
         const albumInfo = data.album;
@@ -874,8 +879,7 @@ function prepareVerificationView(albumInfo) {
     updateAlbumDetails(albumInfo);
 
     AppState.album.tracks = [];
-    const tracks = albumInfo.tracks?.track || [];
-    const trackArray = Array.isArray(tracks) ? tracks : [tracks];
+    const trackArray = toArray(albumInfo.tracks?.track);
 
     if (trackArray.length === 0) {
         handleEmptyAlbum(albumInfo);
@@ -1196,7 +1200,7 @@ const processBatchScrobble = withSpinner(async (tracksToScrobble) => {
 
             const data = await response.json();
             if (data.error) {
-                throw new Error(data.message || 'Batch scrobble failed');
+                throw new Error(data.message || data.error);
             }
             return data;
         }));
@@ -1274,10 +1278,10 @@ async function fetchHistoryTracks(page) {
     const data = await response.json();
 
     if (data.error) {
-        throw new Error(data.message || 'Failed to load history');
+        throw new Error(data.message || data.error);
     }
 
-    return data.recenttracks?.track || [];
+    return toArray(data.recenttracks?.track);
 }
 
 function updateLoadMoreButton(trackCount) {

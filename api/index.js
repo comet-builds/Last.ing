@@ -22,12 +22,18 @@ const MUSICBRAINZ_USER_AGENT = 'Last.ing/1.0 ( https://github.com/comet-builds/L
 const CACHE_SIZE_LIMIT = 500;
 const MAX_STRING_LENGTH = 500;
 const MAX_BODY_SIZE = 256 * 1024; // 256KB
-const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex');
+const COOKIE_SECRET = process.env.COOKIE_SECRET;
 const API_ROOT = 'https://ws.audioscrobbler.com/2.0/';
+
+const compareAscii = (a, b) => {
+    if (a < b) return -1;
+    if (a > b) return 1;
+    return 0;
+};
 
 const signParams = (params) => {
     let signatureString = '';
-    const keys = Object.keys(params).sort((a, b) => a.localeCompare(b));
+    const keys = Object.keys(params).sort(compareAscii);
 
     for (const key of keys) {
         if (key !== 'format' && key !== 'callback') {
@@ -103,6 +109,10 @@ app.use(compression());
 
 
 app.use('/api/2.0/', express.raw({ type: '*/*', limit: MAX_BODY_SIZE }), (req, res) => {
+    if (!API_KEY || !SHARED_SECRET) {
+        return res.status(500).json({ error: 'Server misconfiguration: Missing API Key or Secret' });
+    }
+
     const targetUrl = new URL(API_ROOT);
     const isPost = req.method === 'POST';
 
@@ -232,6 +242,11 @@ const ensureString = (val, maxLength = MAX_STRING_LENGTH) => {
     if (typeof val !== 'string') return false;
     if (val.length > maxLength) return false;
     return true;
+};
+
+const toArray = (val) => {
+    if (!val) return [];
+    return Array.isArray(val) ? val : [val];
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -720,7 +735,7 @@ const getSearchTrackAlbums = async (artist, track) => {
 
     try {
         const searchData = await makeLastFmRequest('track.search', { track, artist, limit: 5 });
-        const tracks = searchData?.results?.trackmatches?.track || [];
+        const tracks = toArray(searchData?.results?.trackmatches?.track);
 
         const uniqueTracks = filterUniqueTracks(tracks, artist, track);
         const albums = await fetchAlbumsForTracks(uniqueTracks);
@@ -790,6 +805,10 @@ app.get('/api/login-url', (req, res) => {
 });
 
 app.post('/api/auth', async (req, res) => {
+    if (!COOKIE_SECRET) {
+        return res.status(500).json({ error: 'Server misconfiguration: Missing Cookie Secret' });
+    }
+
     const { token } = req.body;
 
     if (!token || typeof token !== 'string') {
