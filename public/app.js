@@ -97,13 +97,25 @@ const DEFAULT_TRACK_DURATION = 180;
 
 // --- Audio Recognition ---
 
+function getAudioFilename(mimeType) {
+    if (mimeType?.includes('mp4')) return 'sample.mp4';
+    if (mimeType?.includes('ogg')) return 'sample.ogg';
+    return 'sample.webm';
+}
+
 listenBtn.addEventListener('click', async () => {
     if (listenBtn.classList.contains('listen-active')) {
         return; // Already listening
     }
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+            }
+        });
         listenBtn.classList.add('listen-active');
         showStatus('Listening…', 'success');
 
@@ -130,7 +142,7 @@ listenBtn.addEventListener('click', async () => {
             showStatus('Identifying…', 'success');
 
             const formData = new FormData();
-            formData.append('audio', audioBlob, 'sample.webm');
+            formData.append('audio', audioBlob, getAudioFilename(mediaRecorder.mimeType));
 
             try {
                 const response = await fetch(`${CONFIG.BACKEND_URL}/recognize`, {

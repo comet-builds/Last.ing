@@ -210,10 +210,7 @@ const fetchJson = async (url, options = {}) => {
     const data = parseResponseBody(text);
 
     if (!response.ok) {
-        const message = typeof data === 'object' && data?.message
-            ? data.message
-            : `Request failed with status code ${response.status}`;
-        const error = new Error(message);
+        const error = new Error(`Request failed with status code ${response.status}`);
         error.response = {
             status: response.status,
             statusText: response.statusText,
@@ -1096,7 +1093,7 @@ const generateACRCloudSignature = (accessSecret, accessKey, endpoint, dataType, 
 const createACRCloudFormData = (file, accessKey, dataType, signatureVersion, signature, timestamp) => {
     const formData = new FormData();
     const audioBlob = new Blob([file.buffer], { type: file.mimetype });
-    formData.append('sample', audioBlob, 'sample.webm');
+    formData.append('sample', audioBlob, file.originalname || 'sample.webm');
     formData.append('access_key', accessKey);
     formData.append('data_type', dataType);
     formData.append('signature_version', signatureVersion);
@@ -1107,13 +1104,34 @@ const createACRCloudFormData = (file, accessKey, dataType, signatureVersion, sig
 };
 
 const parseACRCloudResponse = (data) => {
-    if (data.status?.code === 0 && data.metadata?.music?.length > 0) {
+    const code = data?.status?.code;
+    if (code === 0 && data.metadata?.music?.length > 0) {
         const trackInfo = data.metadata.music[0];
         const artist = trackInfo.artists && trackInfo.artists.length > 0 ? trackInfo.artists[0].name : '';
         const track = trackInfo.title || '';
         return { success: true, artist, track };
     }
-    return { success: false, details: data.status ? data.status.msg : 'Unknown error' };
+    return {
+        success: false,
+        code,
+        details: data?.status ? data.status.msg : 'Unknown error'
+    };
+};
+
+const getACRCloudErrorResponse = ({ code, details }) => {
+    if (code === 1001) {
+        return { status: 404, body: { error: 'Could not identify the song.', details } };
+    }
+    if (typeof code === 'number' && code >= 3000) {
+        return { status: 502, body: { error: `Recognition service error: ${details}`, details } };
+    }
+    return { status: 422, body: { error: `Could not identify the audio (${details}).`, details } };
+};
+
+const normalizeACRCloudHost = (rawHost) => {
+    if (!rawHost) return '';
+    const withoutProtocol = rawHost.trim().replace(/^https?:\/\//i, '');
+    return withoutProtocol.split('/')[0];
 };
 
 app.post('/api/recognize', upload.single('audio'), async (req, res) => {
@@ -1122,11 +1140,11 @@ app.post('/api/recognize', upload.single('audio'), async (req, res) => {
             return res.status(400).json({ error: 'No audio file provided' });
         }
 
-        const host = process.env.ACRCLOUD_HOST || 'identify-us-west-2.acrcloud.com';
-        const accessKey = process.env.ACRCLOUD_ACCESS_KEY;
-        const accessSecret = process.env.ACRCLOUD_ACCESS_SECRET;
+        const host = normalizeACRCloudHost(process.env.ACRCLOUD_HOST);
+        const accessKey = process.env.ACRCLOUD_ACCESS_KEY?.trim();
+        const accessSecret = process.env.ACRCLOUD_ACCESS_SECRET?.trim();
 
-        if (!accessKey || !accessSecret) {
+        if (!host || !accessKey || !accessSecret) {
             return res.status(500).json({ error: 'ACRCloud credentials are not configured on the server.' });
         }
 
@@ -1147,11 +1165,15 @@ app.post('/api/recognize', upload.single('audio'), async (req, res) => {
 
         if (parsedResponse.success) {
             return res.json({ artist: parsedResponse.artist, track: parsedResponse.track });
-        } else {
-            return res.status(404).json({ error: 'Could not identify the audio.', details: parsedResponse.details });
         }
+
+        const errorResponse = getACRCloudErrorResponse(parsedResponse);
+        return res.status(errorResponse.status).json(errorResponse.body);
     } catch (error) {
-        console.error('ACRCloud error:', error.message);
+        const safeMessage = typeof error?.message === 'string'
+            ? error.message.replaceAll(/[\r\n]/g, ' ')
+            : 'Unknown error';
+        console.error('ACRCloud error:', safeMessage);
         res.status(500).json({ error: 'Failed to communicate with the recognition service.' });
     }
 });
